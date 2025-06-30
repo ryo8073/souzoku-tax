@@ -9,14 +9,10 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
-  Users,
-  FileText,
-  CheckCircle,
   AlertCircle,
 } from 'lucide-react';
 import {
   TaxCalculationResult as TaxResultType,
-  Heir,
 } from '@/types/inheritance';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
