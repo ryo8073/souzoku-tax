@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
@@ -314,8 +313,6 @@ export function ActualDivisionForm({
     onSubmit(divisionData);
   };
 
-  const legalHeirs = heirs.filter(h => h.heir_type !== HeirType.OTHER);
-
   return (
     <div className="space-y-6">
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -389,7 +386,7 @@ export function ActualDivisionForm({
                     );
                   })}
                   <h3 className="text-lg font-semibold mt-6">法定相続人以外</h3>
-                  {formData.nonHeirPersons.map((person, index) => {
+                  {formData.nonHeirPersons.map((person) => {
                     const amount = formData.amounts[person.id] || '0';
                      const percentage = totalAmount > 0 ? (parseInt(amount, 10) / totalAmount) * 100 : 0;
                     return(
@@ -474,7 +471,7 @@ export function ActualDivisionForm({
                     );
                   })}
                   <h3 className="text-lg font-semibold mt-6">法定相続人以外</h3>
-                  {formData.nonHeirPersons.map((person, index) => {
+                  {formData.nonHeirPersons.map((person) => {
                     const percentage = formData.percentages[person.id] || '0';
                     const amount = totalAmount * (parseFloat(percentage) / 100);
                     return (
