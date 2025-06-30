@@ -15,19 +15,15 @@ import {
   Plus, 
   Minus, 
   AlertCircle,
-  CheckCircle,
   Loader2,
   Info
 } from 'lucide-react';
 import { 
   Heir, 
   HeirType, 
-  RelationshipType,
   FamilyStructure, 
-  DivisionResult,
   DivisionInput 
 } from '@/types/inheritance';
-import { Badge } from '@/components/ui/badge';
 
 interface ActualDivisionFormProps {
   heirs: Heir[];
@@ -35,7 +31,6 @@ interface ActualDivisionFormProps {
   totalTaxAmount: number;
   _familyStructure: FamilyStructure;
   onSubmit: (data: DivisionInput) => void;
-  result?: DivisionResult | null;
   isLoading?: boolean;
 }
 
@@ -45,17 +40,13 @@ interface DivisionFormData {
   percentages: Record<string, string>;
   roundingMethod: 'round' | 'floor' | 'ceil';
   nonHeirPersons: Array<{ id: string; name: string }>;
-  totalInputAmount: number;
-  totalInputPercentage: number;
 }
 
 export function ActualDivisionForm({ 
   heirs, 
   totalAmount, 
   totalTaxAmount, 
-  _familyStructure, 
   onSubmit, 
-  result,
   isLoading = false 
 }: ActualDivisionFormProps) {
   const [formData, setFormData] = useState<DivisionFormData>(() => {
@@ -64,18 +55,11 @@ export function ActualDivisionForm({
     
     heirs.forEach(heir => {
       if (heir.heir_type !== HeirType.OTHER) {
-        const legalShareAmount = Math.floor(totalAmount * heir.inheritance_share);
-        const legalSharePercentage = (heir.inheritance_share * 100).toFixed(1);
-        
-        initialAmounts[heir.id] = legalShareAmount.toString();
-        initialPercentages[heir.id] = legalSharePercentage;
+        initialAmounts[heir.id] = (totalAmount * heir.inheritance_share).toFixed(0);
+        initialPercentages[heir.id] = (heir.inheritance_share * 100).toFixed(2);
       }
     });
 
-    const initialTotalAmount = Object.values(initialAmounts).reduce((sum, amount) => sum + parseInt(amount || '0', 10), 0);
-    const initialTotalPercentage = Object.values(initialPercentages).reduce((sum, percentage) => sum + parseFloat(percentage || '0'), 0);
-    
-    // 法定相続人以外の人を初期化
     const nonHeirPersons = heirs
       .filter(heir => heir.heir_type === HeirType.OTHER)
       .map(heir => ({ id: heir.id, name: heir.name }));
@@ -86,21 +70,19 @@ export function ActualDivisionForm({
     });
 
     return {
-      mode: 'amount' as const,
+      mode: 'amount',
       amounts: initialAmounts,
       percentages: initialPercentages,
-      roundingMethod: 'round' as const,
+      roundingMethod: 'round',
       nonHeirPersons,
-      totalInputAmount: initialTotalAmount,
-      totalInputPercentage: initialTotalPercentage
     };
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const calculateTotals = (amounts: Record<string, string>, percentages: Record<string, string>) => {
-    const totalInputAmount = Object.values(amounts).reduce((sum, amount) => sum + parseInt(amount || '0', 10), 0);
-    const totalInputPercentage = Object.values(percentages).reduce((sum, p) => sum + parseFloat(p || '0'), 0);
+  const calculateTotals = () => {
+    const totalInputAmount = Object.values(formData.amounts).reduce((sum, amount) => sum + Number(amount || '0'), 0);
+    const totalInputPercentage = Object.values(formData.percentages).reduce((sum, p) => sum + Number(p || '0'), 0);
     return { totalInputAmount, totalInputPercentage };
   };
 
@@ -109,96 +91,47 @@ export function ActualDivisionForm({
   };
 
   const formatNumber = (value: string): string => {
-    const number = value.replace(/[^0-9]/g, '');
-    return number.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return value.replace(/[^0-9]/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   };
 
   const handleAmountChange = (heirId: string, value: string) => {
     const numericValue = value.replace(/[^0-9]/g, '');
-    setFormData(prev => {
-      const newAmounts = {
-        ...prev.amounts,
-        [heirId]: numericValue
-      };
-      const { totalInputAmount, totalInputPercentage } = calculateTotals(newAmounts, prev.percentages);
-      return {
-        ...prev,
-        amounts: newAmounts,
-        totalInputAmount,
-        totalInputPercentage,
-      };
-    });
-    
-    // エラーをクリア
-    if (errors[heirId]) {
-      setErrors(prev => ({
-        ...prev,
-        [heirId]: ''
-      }));
-    }
+    setFormData(prev => ({
+      ...prev,
+      amounts: { ...prev.amounts, [heirId]: numericValue }
+    }));
   };
 
   const handlePercentageChange = (heirId: string, value: string) => {
     const numericValue = value.replace(/[^0-9.]/g, '');
-    setFormData(prev => {
-      const newPercentages = {
-        ...prev.percentages,
-        [heirId]: numericValue
-      };
-      const { totalInputAmount, totalInputPercentage } = calculateTotals(prev.amounts, newPercentages);
-      return {
-        ...prev,
-        percentages: newPercentages,
-        totalInputAmount,
-        totalInputPercentage,
-      };
-    });
-    
-    // エラーをクリア
-    if (errors[heirId]) {
-      setErrors(prev => ({
-        ...prev,
-        [heirId]: ''
-      }));
-    }
+    setFormData(prev => ({
+      ...prev,
+      percentages: { ...prev.percentages, [heirId]: numericValue }
+    }));
   };
 
   const addNonHeirPerson = () => {
     const newId = `non_heir_${Date.now()}`;
     const newName = `法定相続人以外${formData.nonHeirPersons.length + 1}`;
-    
-    setFormData(prev => {
-      const newAmounts = { ...prev.amounts, [newId]: '0' };
-      const newPercentages = { ...prev.percentages, [newId]: '0' };
-      const { totalInputAmount, totalInputPercentage } = calculateTotals(newAmounts, newPercentages);
-
-      return {
-        ...prev,
-        nonHeirPersons: [...prev.nonHeirPersons, { id: newId, name: newName }],
-        amounts: newAmounts,
-        percentages: newPercentages,
-        totalInputAmount,
-        totalInputPercentage,
-      };
-    });
+    setFormData(prev => ({
+      ...prev,
+      nonHeirPersons: [...prev.nonHeirPersons, { id: newId, name: newName }],
+      amounts: { ...prev.amounts, [newId]: '0' },
+      percentages: { ...prev.percentages, [newId]: '0' },
+    }));
   };
 
   const removeNonHeirPerson = (personId: string) => {
     setFormData(prev => {
       const newAmounts = { ...prev.amounts };
-      const newPercentages = { ...prev.percentages };
       delete newAmounts[personId];
+      const newPercentages = { ...prev.percentages };
       delete newPercentages[personId];
-      
-      const { totalInputAmount, totalInputPercentage } = calculateTotals(newAmounts, newPercentages);
-
       return {
         ...prev,
         nonHeirPersons: prev.nonHeirPersons.filter(p => p.id !== personId),
         amounts: newAmounts,
         percentages: newPercentages,
-        totalInputAmount,
-        totalInputPercentage,
       };
     });
   };
@@ -214,738 +147,174 @@ export function ActualDivisionForm({
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-    
+    const { totalInputAmount, totalInputPercentage } = calculateTotals();
     if (formData.mode === 'amount') {
-      let totalInputAmount = 0;
-      
-      // 法定相続人の金額チェック
-      heirs.filter(h => h.heir_type !== HeirType.OTHER).forEach(heir => {
-        const amount = parseInt(formData.amounts[heir.id] || '0');
-        if (isNaN(amount) || amount < 0) {
-          newErrors[heir.id] = '正しい金額を入力してください';
-        }
-        totalInputAmount += amount;
-      });
-      
-      // 法定相続人以外の人の金額チェック
-      formData.nonHeirPersons.forEach(person => {
-        const amount = parseInt(formData.amounts[person.id] || '0');
-        if (isNaN(amount) || amount < 0) {
-          newErrors[person.id] = '正しい金額を入力してください';
-        }
-        totalInputAmount += amount;
-      });
-      
-      if (totalInputAmount !== totalAmount) {
-        newErrors.total = `取得金額の合計（${formatCurrency(totalInputAmount)}円）が課税価格の合計額（${formatCurrency(totalAmount)}円）と一致しません`;
+      if (Math.round(totalInputAmount) !== totalAmount) {
+        newErrors.total = `合計額(${formatCurrency(totalInputAmount)}円)が課税価格(${formatCurrency(totalAmount)}円)と一致しません。`;
       }
     } else {
-      let totalPercentage = 0;
-      
-      // 法定相続人の割合チェック
-      heirs.filter(h => h.heir_type !== HeirType.OTHER).forEach(heir => {
-        const percentage = parseFloat(formData.percentages[heir.id] || '0');
-        if (isNaN(percentage) || percentage < 0 || percentage > 100) {
-          newErrors[heir.id] = '0-100の範囲で入力してください';
-        }
-        totalPercentage += percentage;
-      });
-      
-      // 法定相続人以外の人の割合チェック
-      formData.nonHeirPersons.forEach(person => {
-        const percentage = parseFloat(formData.percentages[person.id] || '0');
-        if (isNaN(percentage) || percentage < 0 || percentage > 100) {
-          newErrors[person.id] = '0-100の範囲で入力してください';
-        }
-        totalPercentage += percentage;
-      });
-      
-      if (Math.abs(totalPercentage - 100) > 0.01) {
-        newErrors.total = `取得割合の合計（${totalPercentage.toFixed(1)}%）が100%と一致しません`;
+      if (Math.abs(totalInputPercentage - 100) > 0.01) {
+        newErrors.total = `合計割合(${totalInputPercentage.toFixed(2)}%)が100%になりません。`;
       }
     }
-    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
-    // 全ての相続人（法定相続人 + 法定相続人以外）を含むリストを作成
-    const allHeirs = [
+    const allHeirsAndRecipients = [
       ...heirs.filter(h => h.heir_type !== HeirType.OTHER),
-      ...formData.nonHeirPersons.map(person => ({
-        id: person.id,
-        name: person.name,
-        heir_type: HeirType.OTHER,
-        relationship: RelationshipType.OTHER,
-        inheritance_share: 0,
-        two_fold_addition: true
-      }))
+      ...formData.nonHeirPersons.map(p => ({
+        id: p.id, name: p.name, heir_type: HeirType.OTHER,
+        relationship: 'other', inheritance_share: 0, two_fold_addition: true
+      } as Heir))
     ];
-
+    
     const divisionData: DivisionInput = {
-      heirs: allHeirs,
+      heirs: allHeirsAndRecipients,
       total_amount: totalAmount,
       total_tax_amount: totalTaxAmount,
       mode: formData.mode,
-      rounding_method: formData.roundingMethod
+      rounding_method: formData.roundingMethod,
+      amounts: Object.fromEntries(Object.entries(formData.amounts).map(([k, v]) => [k, Number(v)])),
+      percentages: Object.fromEntries(Object.entries(formData.percentages).map(([k, v]) => [k, Number(v)])),
     };
-
-    if (formData.mode === 'amount') {
-      const amounts: Record<string, number> = {};
-      Object.entries(formData.amounts).forEach(([heirId, amount]) => {
-        amounts[heirId] = parseInt(amount);
-      });
-      divisionData.amounts = amounts;
-    } else {
-      const percentages: Record<string, number> = {};
-      Object.entries(formData.percentages).forEach(([heirId, percentage]) => {
-        percentages[heirId] = parseFloat(percentage);
-      });
-      divisionData.percentages = percentages;
-    }
-
     onSubmit(divisionData);
   };
-
-  if (result) {
-    const totalAcquiredAmount = result.division_details.reduce((sum, d) => sum + d.acquired_amount, 0);
-    const totalDistributedTax = result.division_details.reduce((sum, d) => sum + d.distributed_tax, 0);
-    const totalAdjustment = result.division_details.reduce((sum, d) => sum + d.adjustment, 0);
-
-    return (
-      <div className="space-y-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* 入力方式選択 */}
-          <Card className="border-indigo-200 bg-indigo-50/30">
-            <CardHeader>
-              <CardTitle className="text-xl">分割方式の選択</CardTitle>
-              <CardDescription>金額で指定するか、割合で指定するかを選択してください</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Tabs value={formData.mode} onValueChange={(value) => setFormData(prev => ({...prev, mode: value as 'amount' | 'percentage'}))} className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="amount"><DollarSign className="mr-2 h-4 w-4" />金額指定</TabsTrigger>
-                  <TabsTrigger value="percentage"><Percent className="mr-2 h-4 w-4" />割合指定</TabsTrigger>
-                </TabsList>
-                <div className="mt-4">
-                  <Label htmlFor="roundingMethod">端数処理方法</Label>
-                  <Select
-                    value={formData.roundingMethod}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, roundingMethod: value as 'round' | 'floor' | 'ceil' }))}
-                  >
-                    <SelectTrigger id="roundingMethod" className="w-[180px]">
-                      <SelectValue placeholder="端数処理方法" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="round">四捨五入</SelectItem>
-                      <SelectItem value="floor">切り捨て</SelectItem>
-                      <SelectItem value="ceil">切り上げ</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <TabsContent value="amount">
-                  <Alert className="mt-4 bg-blue-50 border-blue-200">
-                    <Info className="h-4 w-4 text-blue-700" />
-                    <AlertDescription className="text-blue-800">
-                      各相続人が実際に取得する金額を入力してください。合計が課税価格の合計額と一致する必要があります。
-                    </AlertDescription>
-                  </Alert>
-
-                  <div className="space-y-4 mt-4">
-                    <h3 className="text-lg font-semibold">法定相続人</h3>
-                    {heirs.filter(heir => heir.heir_type !== HeirType.OTHER).map(heir => {
-                      const amount = formData.amounts[heir.id] || '0';
-                      const percentage = totalAmount > 0 ? (parseInt(amount, 10) / totalAmount) * 100 : 0;
-                      return (
-                        <div key={heir.id} className="p-4 border rounded-md">
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <Label htmlFor={`amount-${heir.id}`} className="font-semibold">{heir.name}</Label>
-                              <p className="text-sm text-gray-500">
-                                法定相続分: {formatCurrency(Math.floor(totalAmount * heir.inheritance_share))}円 ({ (heir.inheritance_share * 100).toFixed(1) }%)
-                              </p>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Input
-                                id={`amount-${heir.id}`}
-                                type="text"
-                                inputMode="numeric"
-                                value={formatNumber(amount)}
-                                onChange={(e) => handleAmountChange(heir.id, e.target.value)}
-                                className="w-48 text-right"
-                              />
-                              <span>円</span>
-                            </div>
-                          </div>
-                          <p className="text-sm text-gray-600 mt-1 text-right">
-                            取得割合: {percentage.toFixed(2)}%
-                          </p>
-                          {errors[heir.id] && <p className="text-red-500 text-sm mt-1">{errors[heir.id]}</p>}
-                        </div>
-                      );
-                    })}
-                    <h3 className="text-lg font-semibold mt-6">法定相続人以外</h3>
-                    {formData.nonHeirPersons.map((person) => {
-                      const amount = formData.amounts[person.id] || '0';
-                       const percentage = totalAmount > 0 ? (parseInt(amount, 10) / totalAmount) * 100 : 0;
-                      return(
-                        <div key={person.id} className="p-4 border rounded-md">
-                          <div className="flex justify-between items-center">
-                            <Input
-                              value={person.name}
-                              onChange={(e) => updateNonHeirPersonName(person.id, e.target.value)}
-                              className="w-48"
-                            />
-                            <div className="flex items-center space-x-2">
-                              <Input
-                                id={`amount-${person.id}`}
-                                type="text"
-                                inputMode="numeric"
-                                value={formatNumber(amount)}
-                                onChange={(e) => handleAmountChange(person.id, e.target.value)}
-                                className="w-48 text-right"
-                              />
-                              <span>円</span>
-                              <Button variant="ghost" size="icon" onClick={() => removeNonHeirPerson(person.id)}>
-                                <Minus className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                          <p className="text-sm text-gray-600 mt-1 text-right">
-                            取得割合: {percentage.toFixed(2)}%
-                          </p>
-                          {errors[person.id] && <p className="text-red-500 text-sm mt-1">{errors[person.id]}</p>}
-                        </div>
-                      )
-                    })}
-                    <Button variant="outline" onClick={addNonHeirPerson}>
-                      <Plus className="mr-2 h-4 w-4" /> 法定相続人以外を追加
-                    </Button>
-                    <div className="mt-4 p-4 border rounded-md font-semibold text-lg flex justify-between">
-                      <span>合計取得金額:</span>
-                      <span>{formatCurrency(formData.totalInputAmount)} 円</span>
-                    </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="percentage">
-                  <Alert className="mt-4 bg-green-50 border-green-200">
-                    <Info className="h-4 w-4 text-green-700" />
-                    <AlertDescription className="text-green-800">
-                      各相続人が取得する割合を入力してください。合計が100%になる必要があります。
-                    </AlertDescription>
-                  </Alert>
-
-                  <div className="space-y-4 mt-4">
-                    <h3 className="text-lg font-semibold">法定相続人</h3>
-                    {heirs.filter(heir => heir.heir_type !== HeirType.OTHER).map(heir => {
-                      const percentage = formData.percentages[heir.id] || '0';
-                      const amount = totalAmount * (parseFloat(percentage) / 100);
-                      return (
-                        <div key={heir.id} className="p-4 border rounded-md">
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <Label htmlFor={`percentage-${heir.id}`} className="font-semibold">{heir.name}</Label>
-                              <p className="text-sm text-gray-500">
-                                法定相続分: { (heir.inheritance_share * 100).toFixed(1) }% ({formatCurrency(Math.floor(totalAmount * heir.inheritance_share))}円)
-                              </p>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Input
-                                id={`percentage-${heir.id}`}
-                                type="text"
-                                inputMode="numeric"
-                                value={percentage}
-                                onChange={(e) => handlePercentageChange(heir.id, e.target.value)}
-                                className="w-32 text-right"
-                              />
-                              <span>%</span>
-                            </div>
-                          </div>
-                          <p className="text-sm text-gray-600 mt-1 text-right">
-                            取得金額: {formatCurrency(amount)}円
-                          </p>
-                          {errors[heir.id] && <p className="text-red-500 text-sm mt-1">{errors[heir.id]}</p>}
-                        </div>
-                      );
-                    })}
-                    <h3 className="text-lg font-semibold mt-6">法定相続人以外</h3>
-                    {formData.nonHeirPersons.map((person) => {
-                      const percentage = formData.percentages[person.id] || '0';
-                      const amount = totalAmount * (parseFloat(percentage) / 100);
-                      return (
-                        <div key={person.id} className="p-4 border rounded-md">
-                          <div className="flex justify-between items-center">
-                            <Input
-                              value={person.name}
-                              onChange={(e) => updateNonHeirPersonName(person.id, e.target.value)}
-                              className="w-48"
-                            />
-                            <div className="flex items-center space-x-2">
-                              <Input
-                                id={`percentage-${person.id}`}
-                                type="text"
-                                inputMode="numeric"
-                                value={percentage}
-                                onChange={(e) => handlePercentageChange(person.id, e.target.value)}
-                                className="w-32 text-right"
-                              />
-                              <span>%</span>
-                              <Button variant="ghost" size="icon" onClick={() => removeNonHeirPerson(person.id)}>
-                                <Minus className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                           <p className="text-sm text-gray-600 mt-1 text-right">
-                            取得金額: {formatCurrency(amount)}円
-                          </p>
-                          {errors[person.id] && <p className="text-red-500 text-sm mt-1">{errors[person.id]}</p>}
-                        </div>
-                      );
-                    })}
-                    <Button variant="outline" onClick={addNonHeirPerson}>
-                      <Plus className="mr-2 h-4 w-4" /> 法定相続人以外を追加
-                    </Button>
-                    <div className="mt-4 p-4 border rounded-md font-semibold text-lg flex justify-between">
-                      <span>合計取得割合:</span>
-                      <span>{formData.totalInputPercentage.toFixed(2)} %</span>
-                    </div>
-                  </div>
-                </TabsContent>
-              </Tabs>
-
-              {errors.total && (
-                <Alert variant="destructive" className="mt-4">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{errors.total}</AlertDescription>
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* 計算ボタン */}
-          <div className="flex justify-center">
-            <Button 
-              type="submit" 
-              size="lg" 
-              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-3"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  計算中...
-                </>
-              ) : (
-                <>
-                  <Calculator className="mr-2 h-5 w-5" />
-                  実際の分割で計算
-                </>
-              )}
-            </Button>
-          </div>
-        </form>
-
-        {/* 計算結果表示 */}
-        {result && (
-          <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm mt-6">
-            <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-lg">
-              <CardTitle className="flex items-center gap-2 text-green-900">
-                <CheckCircle className="h-5 w-5" />
-                実際の分割による計算結果
-              </CardTitle>
-              <CardDescription className="text-green-700">
-                配偶者税額軽減・2割加算を適用した最終的な納税額
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b">
-                    <tr className="border-b">
-                      <th className="p-3 text-left font-semibold">相続人</th>
-                      <th className="p-3 text-right font-semibold">取得金額</th>
-                      <th className="p-3 text-right font-semibold">配分税額</th>
-                      <th className="p-3 text-right font-semibold">加算・減算</th>
-                      <th className="p-3 text-right font-semibold">最終納税額</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.division_details.map((detail) => (
-                      <tr key={detail.heir_id} className="border-b">
-                        <td className="p-3">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{detail.name}</span>
-                            <Badge variant="outline" className="text-xs">
-                              {detail.relationship}
-                            </Badge>
-                          </div>
-                        </td>
-                        <td className="p-3 text-right">
-                          {formatCurrency(detail.acquired_amount)}円
-                        </td>
-                        <td className="p-3 text-right">
-                          {formatCurrency(detail.distributed_tax)}円
-                        </td>
-                        <td className="p-3 text-right">
-                          <span
-                            className={
-                              detail.adjustment > 0
-                                ? 'text-red-600'
-                                : detail.adjustment < 0
-                                ? 'text-green-600'
-                                : ''
-                            }
-                          >
-                            {detail.adjustment > 0 ? '+' : ''}
-                            {formatCurrency(detail.adjustment)}円
-                          </span>
-                        </td>
-                        <td className="p-3 text-right font-bold text-indigo-600">
-                          {formatCurrency(detail.final_tax_amount)}円
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-gray-100 font-bold border-t-2">
-                      <td className="p-3 text-left">合計</td>
-                      <td className="p-3 text-right">{formatCurrency(totalAcquiredAmount)}円</td>
-                      <td className="p-3 text-right">{formatCurrency(totalDistributedTax)}円</td>
-                      <td className="p-3 text-right">
-                        <span
-                            className={
-                              totalAdjustment > 0
-                                ? 'text-red-600'
-                                : totalAdjustment < 0
-                                ? 'text-green-600'
-                                : ''
-                            }
-                          >
-                          {totalAdjustment > 0 ? '+' : ''}
-                          {formatCurrency(totalAdjustment)}円
-                        </span>
-                      </td>
-                      <td className="p-3 text-right text-indigo-600 text-lg">
-                        {formatCurrency(result.total_final_tax_amount)}円
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    );
-  }
+  
+  const { totalInputAmount, totalInputPercentage } = calculateTotals();
 
   return (
-    <div className="space-y-6">
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* 入力方式選択 */}
-        <Card className="border-indigo-200 bg-indigo-50/30">
-          <CardHeader>
-            <CardTitle className="text-xl">分割方式の選択</CardTitle>
-            <CardDescription>金額で指定するか、割合で指定するかを選択してください</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs value={formData.mode} onValueChange={(value) => setFormData(prev => ({...prev, mode: value as 'amount' | 'percentage'}))} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="amount"><DollarSign className="mr-2 h-4 w-4" />金額指定</TabsTrigger>
-                <TabsTrigger value="percentage"><Percent className="mr-2 h-4 w-4" />割合指定</TabsTrigger>
-              </TabsList>
-              <div className="mt-4">
-                <Label htmlFor="roundingMethod">端数処理方法</Label>
-                <Select
-                  value={formData.roundingMethod}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, roundingMethod: value as 'round' | 'floor' | 'ceil' }))}
-                >
-                  <SelectTrigger id="roundingMethod" className="w-[180px]">
-                    <SelectValue placeholder="端数処理方法" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="round">四捨五入</SelectItem>
-                    <SelectItem value="floor">切り捨て</SelectItem>
-                    <SelectItem value="ceil">切り上げ</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <TabsContent value="amount">
-                <Alert className="mt-4 bg-blue-50 border-blue-200">
-                  <Info className="h-4 w-4 text-blue-700" />
-                  <AlertDescription className="text-blue-800">
-                    各相続人が実際に取得する金額を入力してください。合計が課税価格の合計額と一致する必要があります。
-                  </AlertDescription>
-                </Alert>
-
-                <div className="space-y-4 mt-4">
-                  <h3 className="text-lg font-semibold">法定相続人</h3>
-                  {heirs.filter(heir => heir.heir_type !== HeirType.OTHER).map(heir => {
-                    const amount = formData.amounts[heir.id] || '0';
-                    const percentage = totalAmount > 0 ? (parseInt(amount, 10) / totalAmount) * 100 : 0;
-                    return (
-                      <div key={heir.id} className="p-4 border rounded-md">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <Label htmlFor={`amount-${heir.id}`} className="font-semibold">{heir.name}</Label>
-                            <p className="text-sm text-gray-500">
-                              法定相続分: {formatCurrency(Math.floor(totalAmount * heir.inheritance_share))}円 ({ (heir.inheritance_share * 100).toFixed(1) }%)
-                            </p>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Input
-                              id={`amount-${heir.id}`}
-                              type="text"
-                              inputMode="numeric"
-                              value={formatNumber(amount)}
-                              onChange={(e) => handleAmountChange(heir.id, e.target.value)}
-                              className="w-48 text-right"
-                            />
-                            <span>円</span>
-                          </div>
-                        </div>
-                        <p className="text-sm text-gray-600 mt-1 text-right">
-                          取得割合: {percentage.toFixed(2)}%
-                        </p>
-                        {errors[heir.id] && <p className="text-red-500 text-sm mt-1">{errors[heir.id]}</p>}
-                      </div>
-                    );
-                  })}
-                  <h3 className="text-lg font-semibold mt-6">法定相続人以外</h3>
-                  {formData.nonHeirPersons.map((person) => {
-                    const amount = formData.amounts[person.id] || '0';
-                     const percentage = totalAmount > 0 ? (parseInt(amount, 10) / totalAmount) * 100 : 0;
-                    return(
-                      <div key={person.id} className="p-4 border rounded-md">
-                        <div className="flex justify-between items-center">
-                          <Input
-                            value={person.name}
-                            onChange={(e) => updateNonHeirPersonName(person.id, e.target.value)}
-                            className="w-48"
-                          />
-                          <div className="flex items-center space-x-2">
-                            <Input
-                              id={`amount-${person.id}`}
-                              type="text"
-                              inputMode="numeric"
-                              value={formatNumber(amount)}
-                              onChange={(e) => handleAmountChange(person.id, e.target.value)}
-                              className="w-48 text-right"
-                            />
-                            <span>円</span>
-                            <Button variant="ghost" size="icon" onClick={() => removeNonHeirPerson(person.id)}>
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        <p className="text-sm text-gray-600 mt-1 text-right">
-                          取得割合: {percentage.toFixed(2)}%
-                        </p>
-                        {errors[person.id] && <p className="text-red-500 text-sm mt-1">{errors[person.id]}</p>}
-                      </div>
-                    )
-                  })}
-                  <Button variant="outline" onClick={addNonHeirPerson}>
-                    <Plus className="mr-2 h-4 w-4" /> 法定相続人以外を追加
-                  </Button>
-                  <div className="mt-4 p-4 border rounded-md font-semibold text-lg flex justify-between">
-                    <span>合計取得金額:</span>
-                    <span>{formatCurrency(formData.totalInputAmount)} 円</span>
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="percentage">
-                <Alert className="mt-4 bg-green-50 border-green-200">
-                  <Info className="h-4 w-4 text-green-700" />
-                  <AlertDescription className="text-green-800">
-                    各相続人が取得する割合を入力してください。合計が100%になる必要があります。
-                  </AlertDescription>
-                </Alert>
-
-                <div className="space-y-4 mt-4">
-                  <h3 className="text-lg font-semibold">法定相続人</h3>
-                  {heirs.filter(heir => heir.heir_type !== HeirType.OTHER).map(heir => {
-                    const percentage = formData.percentages[heir.id] || '0';
-                    const amount = totalAmount * (parseFloat(percentage) / 100);
-                    return (
-                      <div key={heir.id} className="p-4 border rounded-md">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <Label htmlFor={`percentage-${heir.id}`} className="font-semibold">{heir.name}</Label>
-                            <p className="text-sm text-gray-500">
-                              法定相続分: { (heir.inheritance_share * 100).toFixed(1) }% ({formatCurrency(Math.floor(totalAmount * heir.inheritance_share))}円)
-                            </p>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Input
-                              id={`percentage-${heir.id}`}
-                              type="text"
-                              inputMode="numeric"
-                              value={percentage}
-                              onChange={(e) => handlePercentageChange(heir.id, e.target.value)}
-                              className="w-32 text-right"
-                            />
-                            <span>%</span>
-                          </div>
-                        </div>
-                        <p className="text-sm text-gray-600 mt-1 text-right">
-                          取得金額: {formatCurrency(amount)}円
-                        </p>
-                        {errors[heir.id] && <p className="text-red-500 text-sm mt-1">{errors[heir.id]}</p>}
-                      </div>
-                    );
-                  })}
-                  <h3 className="text-lg font-semibold mt-6">法定相続人以外</h3>
-                  {formData.nonHeirPersons.map((person) => {
-                    const percentage = formData.percentages[person.id] || '0';
-                    const amount = totalAmount * (parseFloat(percentage) / 100);
-                    return (
-                      <div key={person.id} className="p-4 border rounded-md">
-                        <div className="flex justify-between items-center">
-                          <Input
-                            value={person.name}
-                            onChange={(e) => updateNonHeirPersonName(person.id, e.target.value)}
-                            className="w-48"
-                          />
-                          <div className="flex items-center space-x-2">
-                            <Input
-                              id={`percentage-${person.id}`}
-                              type="text"
-                              inputMode="numeric"
-                              value={percentage}
-                              onChange={(e) => handlePercentageChange(person.id, e.target.value)}
-                              className="w-32 text-right"
-                            />
-                            <span>%</span>
-                            <Button variant="ghost" size="icon" onClick={() => removeNonHeirPerson(person.id)}>
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                         <p className="text-sm text-gray-600 mt-1 text-right">
-                          取得金額: {formatCurrency(amount)}円
-                        </p>
-                        {errors[person.id] && <p className="text-red-500 text-sm mt-1">{errors[person.id]}</p>}
-                      </div>
-                    );
-                  })}
-                  <Button variant="outline" onClick={addNonHeirPerson}>
-                    <Plus className="mr-2 h-4 w-4" /> 法定相続人以外を追加
-                  </Button>
-                  <div className="mt-4 p-4 border rounded-md font-semibold text-lg flex justify-between">
-                    <span>合計取得割合:</span>
-                    <span>{formData.totalInputPercentage.toFixed(2)} %</span>
-                  </div>
-                </div>
-              </TabsContent>
-            </Tabs>
-
-            {errors.total && (
-              <Alert variant="destructive" className="mt-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{errors.total}</AlertDescription>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>分割方式の選択</CardTitle>
+          <CardDescription>金額で指定するか、割合で指定するかを選択してください。</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs value={formData.mode} onValueChange={(v) => setFormData(p => ({...p, mode: v as 'amount'|'percentage'}))} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="amount"><DollarSign className="mr-2 h-4 w-4" />金額指定</TabsTrigger>
+              <TabsTrigger value="percentage"><Percent className="mr-2 h-4 w-4" />割合指定</TabsTrigger>
+            </TabsList>
+            <TabsContent value="amount" className="mt-4">
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  各相続人が実際に取得する金額を入力してください。合計が課税価格の合計額と一致する必要があります。
+                </AlertDescription>
               </Alert>
-            )}
-          </CardContent>
-        </Card>
+              <div className="space-y-4 mt-4">
+                {heirs.filter(h => h.heir_type !== HeirType.OTHER).map(heir => (
+                  <div key={heir.id} className="p-4 border rounded-md">
+                    <Label htmlFor={`amount-${heir.id}`} className="font-semibold">{heir.name}</Label>
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        id={`amount-${heir.id}`}
+                        value={formatNumber(formData.amounts[heir.id] || '')}
+                        onChange={(e) => handleAmountChange(heir.id, e.target.value)}
+                        className="w-full text-right"
+                      />
+                      <span>円</span>
+                    </div>
+                  </div>
+                ))}
+                {formData.nonHeirPersons.map((person, index) => (
+                  <div key={person.id} className="p-4 border rounded-md space-y-2">
+                    <Input value={person.name} onChange={e => updateNonHeirPersonName(person.id, e.target.value)} />
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        value={formatNumber(formData.amounts[person.id] || '')}
+                        onChange={(e) => handleAmountChange(person.id, e.target.value)}
+                        className="w-full text-right"
+                      />
+                      <span>円</span>
+                      <Button variant="ghost" size="icon" onClick={() => removeNonHeirPerson(person.id)}><Minus className="h-4 w-4" /></Button>
+                    </div>
+                  </div>
+                ))}
+                 <Button type="button" variant="outline" onClick={addNonHeirPerson}><Plus className="mr-2 h-4 w-4" /> 法定相続人以外を追加</Button>
+                 <div className="p-4 border rounded-md font-semibold flex justify-between">
+                   <span>合計取得金額:</span>
+                   <span>{formatCurrency(totalInputAmount)} 円</span>
+                 </div>
+              </div>
+            </TabsContent>
+            <TabsContent value="percentage" className="mt-4">
+               <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  各相続人が取得する割合を入力してください。合計が100%になる必要があります。
+                </AlertDescription>
+              </Alert>
+               <div className="space-y-4 mt-4">
+                {heirs.filter(h => h.heir_type !== HeirType.OTHER).map(heir => (
+                    <div key={heir.id} className="p-4 border rounded-md">
+                      <Label htmlFor={`percentage-${heir.id}`} className="font-semibold">{heir.name}</Label>
+                      <div className="flex items-center space-x-2">
+                        <Input
+                          id={`percentage-${heir.id}`}
+                          value={formData.percentages[heir.id] || ''}
+                          onChange={(e) => handlePercentageChange(heir.id, e.target.value)}
+                          className="w-full text-right"
+                        />
+                        <span>%</span>
+                      </div>
+                    </div>
+                ))}
+                {formData.nonHeirPersons.map((person) => (
+                    <div key={person.id} className="p-4 border rounded-md space-y-2">
+                       <Input value={person.name} onChange={e => updateNonHeirPersonName(person.id, e.target.value)} />
+                       <div className="flex items-center space-x-2">
+                          <Input
+                              value={formData.percentages[person.id] || ''}
+                              onChange={(e) => handlePercentageChange(person.id, e.target.value)}
+                              className="w-full text-right"
+                          />
+                          <span>%</span>
+                          <Button variant="ghost" size="icon" onClick={() => removeNonHeirPerson(person.id)}><Minus className="h-4 w-4" /></Button>
+                       </div>
+                    </div>
+                ))}
+                <Button type="button" variant="outline" onClick={addNonHeirPerson}><Plus className="mr-2 h-4 w-4" /> 法定相続人以外を追加</Button>
+                <div className="p-4 border rounded-md font-semibold flex justify-between">
+                   <span>合計取得割合:</span>
+                   <span>{totalInputPercentage.toFixed(2)} %</span>
+                </div>
+                 <div className="mt-2">
+                   <Label>端数処理</Label>
+                   <Select value={formData.roundingMethod} onValueChange={v => setFormData(p => ({...p, roundingMethod: v as 'round'|'floor'|'ceil'}))}>
+                      <SelectTrigger><SelectValue/></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="round">四捨五入</SelectItem>
+                        <SelectItem value="floor">切り捨て</SelectItem>
+                        <SelectItem value="ceil">切り上げ</SelectItem>
+                      </SelectContent>
+                   </Select>
+                 </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
 
-        {/* 計算ボタン */}
-        <div className="flex justify-center">
-          <Button 
-            type="submit" 
-            size="lg" 
-            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-3"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                計算中...
-              </>
-            ) : (
-              <>
-                <Calculator className="mr-2 h-5 w-5" />
-                実際の分割で計算
-              </>
-            )}
-          </Button>
-        </div>
-      </form>
-
-      {/* 計算結果表示 */}
-      {result && (
-        <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm mt-6">
-          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-lg">
-            <CardTitle className="flex items-center gap-2 text-green-900">
-              <CheckCircle className="h-5 w-5" />
-              実際の分割による計算結果
-            </CardTitle>
-            <CardDescription className="text-green-700">
-              配偶者税額軽減・2割加算を適用した最終的な納税額
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">相続人</th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700">取得金額</th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700">配分税額</th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700">加算・減算</th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700">最終納税額</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.heir_details.map((detail, index) => (
-                    <tr key={detail.heir_id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
-                      <td className="py-3 px-4">
-                        <span className="font-medium">{detail.heir_name || detail.name}</span>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        {formatCurrency(detail.inheritance_amount || 0)}円
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        {formatCurrency(detail.tax_amount || 0)}円
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <span className={detail.surcharge_deduction_amount && detail.surcharge_deduction_amount > 0 ? 'text-red-600' : detail.surcharge_deduction_amount && detail.surcharge_deduction_amount < 0 ? 'text-green-600' : ''}>
-                          {detail.surcharge_deduction_amount ? (detail.surcharge_deduction_amount > 0 ? '+' : '') + formatCurrency(detail.surcharge_deduction_amount) : '0'}円
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <span className="font-bold text-purple-700">
-                          {formatCurrency(detail.final_tax_amount || 0)}円
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot className="bg-green-50 border-t-2 border-green-200">
-                  <tr>
-                    <td colSpan={4} className="py-3 px-4 font-semibold text-green-900">
-                      合計納税額
-                    </td>
-                    <td className="py-3 px-4 text-right font-bold text-green-900 text-lg">
-                      {formatCurrency(result.total_tax_amount)}円
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+      {errors.total && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{errors.total}</AlertDescription>
+        </Alert>
       )}
-    </div>
+
+      <div className="flex justify-center">
+        <Button type="submit" size="lg" disabled={isLoading}>
+          {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Calculator className="mr-2 h-5 w-5" />}
+          実際の分割で計算
+        </Button>
+      </div>
+    </form>
   );
 }
-
+```
