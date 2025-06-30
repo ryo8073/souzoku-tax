@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     const legalHeirs = calculator.determineLegalHeirs(familyStructure);
     const result: TaxCalculationResult = calculator.calculateTaxByLegalShare(taxableAmount, legalHeirs);
     
-    return NextResponse.json(result);
+    return NextResponse.json({ success: true, result });
 
   } catch (error) {
     let errorMessage = 'An unknown error occurred';
@@ -31,6 +31,6 @@ export async function POST(request: Request) {
       errorMessage = error.message;
     }
     console.error('Error in /api/calculation/tax-amount:', error);
-    return NextResponse.json({ message: 'Internal Server Error', error: errorMessage }, { status: 500 });
+    return NextResponse.json({ success: false, message: 'Internal Server Error', error: errorMessage }, { status: 500 });
   }
 }
