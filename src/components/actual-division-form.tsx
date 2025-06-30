@@ -222,7 +222,7 @@ export function ActualDivisionForm({
                     </div>
                   </div>
                 ))}
-                {formData.nonHeirPersons.map((person, index) => (
+                {formData.nonHeirPersons.map((person) => (
                   <div key={person.id} className="p-4 border rounded-md space-y-2">
                     <Input value={person.name} onChange={e => updateNonHeirPersonName(person.id, e.target.value)} />
                     <div className="flex items-center space-x-2">
