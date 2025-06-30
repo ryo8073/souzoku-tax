@@ -234,6 +234,7 @@ export default function InheritanceTaxCalculator() {
                   <TaxCalculationResult 
                     result={taxCalculationResult}
                     taxableAmount={taxableAmount}
+                    isLoading={isLoading}
                   />
                   <div className="flex justify-center gap-4">
                     <Button 
