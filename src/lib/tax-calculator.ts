@@ -21,7 +21,7 @@ export class InheritanceTaxCalculator {
    */
   determineLegalHeirs(familyStructure: FamilyStructure): Heir[] {
     const heirs: Heir[] = [];
-    const hasChildren = familyStructure.children_count > 0 || familyStructure.adopted_children_count > 0 || familyStructure.grandchild_adopted_count > 0;
+    const hasChildren = familyStructure.children_count > 0;
     const hasParents = familyStructure.parents_alive > 0;
     const hasSiblings = familyStructure.siblings_count > 0 || familyStructure.half_siblings_count > 0;
     let spouseShare = 0.0;
@@ -40,25 +40,36 @@ export class InheritanceTaxCalculator {
     }
 
     if (hasChildren) {
-        const totalChildren = familyStructure.children_count + familyStructure.adopted_children_count;
+        const totalChildren = familyStructure.children_count;
+        const biologicalChildrenCount = totalChildren - familyStructure.adopted_children_count;
+        const normalAdoptedCount = familyStructure.adopted_children_count - familyStructure.grandchild_adopted_count;
         const individualShare = totalChildren > 0 ? othersShare / totalChildren : 0;
+        
         let child_count = 0;
-        let adopted_count = 0;
-
-        for (let i = 0; i < familyStructure.children_count; i++) {
+        for (let i = 0; i < biologicalChildrenCount; i++) {
             child_count++;
             heirs.push({
                 id: `child_${child_count}`, name: `子${child_count}`, heir_type: HeirType.CHILD, relationship: RelationshipType.CHILD,
                 inheritance_share: individualShare, two_fold_addition: false, is_adopted: false
             });
         }
-        for (let i = 0; i < familyStructure.adopted_children_count; i++) {
+        
+        let adopted_count = 0;
+        for (let i = 0; i < normalAdoptedCount; i++) {
             adopted_count++;
-            const isGrandchild = i < familyStructure.grandchild_adopted_count;
             heirs.push({
-                id: `adopted_${adopted_count}`, name: isGrandchild ? `孫養子${adopted_count}` : `養子${adopted_count}`,
-                heir_type: HeirType.CHILD, relationship: isGrandchild ? RelationshipType.GRANDCHILD_ADOPTED : RelationshipType.ADOPTED_CHILD,
-                inheritance_share: individualShare, two_fold_addition: isGrandchild, is_adopted: true
+                id: `adopted_${adopted_count}`, name: `養子${adopted_count}`, heir_type: HeirType.CHILD, relationship: RelationshipType.ADOPTED_CHILD,
+                inheritance_share: individualShare, two_fold_addition: false, is_adopted: true
+            });
+        }
+
+        let grandchild_adopted_count = 0;
+        for (let i = 0; i < familyStructure.grandchild_adopted_count; i++) {
+            grandchild_adopted_count++;
+            heirs.push({
+                id: `grandchild_adopted_${grandchild_adopted_count}`, name: `孫養子${grandchild_adopted_count}`,
+                heir_type: HeirType.CHILD, relationship: RelationshipType.GRANDCHILD_ADOPTED,
+                inheritance_share: individualShare, two_fold_addition: true, is_adopted: true
             });
         }
     } else if (hasParents) {
@@ -332,17 +343,20 @@ export class InheritanceTaxCalculator {
     const errors: ValidationError[] = [];
     const { children_count, adopted_children_count, grandchild_adopted_count, parents_alive, siblings_count, half_siblings_count } = familyStructure;
 
+    if (children_count < 0 || adopted_children_count < 0 || grandchild_adopted_count < 0) {
+      errors.push({ field: 'children_count', code: 'negative_number', message: '人数に負の値は入力できません。'});
+    }
     if (children_count < adopted_children_count) {
-        errors.push({ field: 'adopted_children_count', code: 'invalid_adopted_count', message: '養子の数は子の数以下である必要があります。'});
+      errors.push({ field: 'adopted_children_count', code: 'invalid_adopted_count', message: '養子の数は子供の総数以下である必要があります。'});
     }
     if (adopted_children_count < grandchild_adopted_count) {
-        errors.push({ field: 'grandchild_adopted_count', code: 'invalid_grandchild_adopted_count', message: '孫養子の数は養子の数以下である必要があります。'});
+      errors.push({ field: 'grandchild_adopted_count', code: 'invalid_grandchild_adopted_count', message: '孫養子の数は養子の数以下である必要があります。'});
     }
     if (parents_alive < 0 || parents_alive > 2) {
-        errors.push({ field: 'parents_alive', code: 'invalid_parents_count', message: '親の数は0-2の間である必要があります。'});
+      errors.push({ field: 'parents_alive', code: 'invalid_parents_count', message: '親の数は0-2の間である必要があります。'});
     }
     if (siblings_count < 0 || half_siblings_count < 0) {
-        errors.push({ field: 'siblings_count', code: 'invalid_siblings_count', message: '兄弟の数は0以上である必要があります。'});
+      errors.push({ field: 'siblings_count', code: 'invalid_siblings_count', message: '兄弟の数は0以上である必要があります。'});
     }
     return { is_valid: errors.length === 0, errors };
   }
