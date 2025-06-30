@@ -180,9 +180,8 @@ export class InheritanceTaxCalculator {
 
     const division_details: DivisionResult['division_details'] = [];
     let total_final_tax_amount = 0;
-    const allRecipients = [...heirs];
 
-    for (const person of allRecipients) {
+    for (const person of heirs) {
         const acquired_amount = amounts[person.id] || 0;
         if (acquired_amount <= 0 && person.heir_type === HeirType.OTHER) continue;
 
@@ -252,7 +251,7 @@ export class InheritanceTaxCalculator {
       totalAllocated += amount;
     });
 
-    let diff = totalAmount - totalAllocated;
+    const diff = totalAmount - totalAllocated;
     if (diff !== 0 && heirIds.length > 0) {
         const adjustment = diff > 0 ? 1 : -1;
         for (let i = 0; i < Math.abs(diff); i++) {
@@ -289,7 +288,6 @@ export class InheritanceTaxCalculator {
   validateDivisionInput(divisionInput: DivisionInput, heirs: Heir[]): ValidationResult {
     const { mode, amounts = {}, percentages = {}, total_amount } = divisionInput;
     const errors: ValidationError[] = [];
-    const allRecipients = [...heirs];
 
     if (mode === 'amount') {
         const totalInputAmount = Object.values(amounts).reduce((sum, val) => sum + (Number(val) || 0), 0);
