@@ -145,7 +145,9 @@ export class InheritanceTaxCalculator {
         heir_tax_details.push({
           heir_id: heir.id, name: heir.name, relationship: heir.relationship,
           legal_share_amount: taxableAmount * heir.inheritance_share,
-          tax_before_addition: tempDetails[index].tax
+          tax_before_addition: tempDetails[index].tax,
+          two_fold_addition: heir.two_fold_addition,
+          legal_share_fraction: this.toFraction(heir.inheritance_share),
         });
       });
     } else {
@@ -153,7 +155,9 @@ export class InheritanceTaxCalculator {
             heir_tax_details.push({
                 heir_id: heir.id, name: heir.name, relationship: heir.relationship,
                 legal_share_amount: taxableAmount * heir.inheritance_share,
-                tax_before_addition: 0
+                tax_before_addition: 0,
+                two_fold_addition: heir.two_fold_addition,
+                legal_share_fraction: this.toFraction(heir.inheritance_share),
             });
         });
     }
@@ -229,6 +233,24 @@ export class InheritanceTaxCalculator {
         final_tax_amount: Math.round(d.final_tax_amount)
       }))
     };
+  }
+
+  /**
+   * 割合を分数に変換
+   */
+  private toFraction(decimal: number, tolerance = 1.0E-6): string {
+    if (decimal === 0) return "0";
+    if (decimal === 1) return "1";
+    let h1=1, h2=0, k1=0, k2=1;
+    let b = decimal;
+    do {
+        const a = Math.floor(b);
+        let aux = h1; h1 = a*h1+h2; h2 = aux;
+        aux = k1; k1 = a*k1+k2; k2 = aux;
+        b = 1/(b-a);
+    } while (Math.abs(decimal-h1/k1) > decimal*tolerance);
+    
+    return `${h1}/${k1}`;
   }
 
   /**

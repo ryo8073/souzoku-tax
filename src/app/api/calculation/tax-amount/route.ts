@@ -40,7 +40,15 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      result: taxResult
+      result: {
+        ...taxResult,
+        heirs: legalHeirs.map(h => ({
+          id: h.id,
+          name: h.name,
+          relationship: h.relationship,
+          two_fold_addition: h.two_fold_addition,
+        })),
+      }
     });
 
   } catch (error) {

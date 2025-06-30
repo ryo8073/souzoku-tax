@@ -52,6 +52,8 @@ export interface TaxCalculationResult {
     relationship: string;
     legal_share_amount: number;
     tax_before_addition: number;
+    two_fold_addition: boolean;
+    legal_share_fraction: string;
   }[];
 }
 
