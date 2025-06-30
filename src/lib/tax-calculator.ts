@@ -285,7 +285,7 @@ export class InheritanceTaxCalculator {
   /**
    * 分割入力データのバリデーション
    */
-  validateDivisionInput(divisionInput: DivisionInput, heirs: Heir[]): ValidationResult {
+  validateDivisionInput(divisionInput: DivisionInput, _heirs: Heir[]): ValidationResult {
     const { mode, amounts = {}, percentages = {}, total_amount } = divisionInput;
     const errors: ValidationError[] = [];
 
