@@ -67,8 +67,8 @@ export default function InheritanceTaxCalculator() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            taxable_amount: data.taxableAmount,
-            family_structure: data.familyStructure
+            taxableAmount: data.taxableAmount,
+            familyStructure: data.familyStructure
           }),
         });
         
