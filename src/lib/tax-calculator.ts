@@ -193,6 +193,9 @@ export class InheritanceTaxCalculator {
         amounts = this.convertPercentageToAmount(divisionInput.percentages, total_amount, divisionInput.rounding_method || 'round');
     }
 
+    const totalActualAmount = Object.values(amounts).reduce((sum, amount) => sum + amount, 0);
+    const safeTotal = totalActualAmount === 0 ? 1 : totalActualAmount;
+
     const division_details: DivisionResult['division_details'] = [];
     let total_final_tax_amount = 0;
 
@@ -200,36 +203,36 @@ export class InheritanceTaxCalculator {
         const acquired_amount = amounts[person.id] || 0;
         if (acquired_amount <= 0 && person.heir_type === HeirType.OTHER) continue;
 
-        const distributed_tax = total_amount > 0 ? (acquired_amount / total_amount) * total_tax_amount : 0;
-        let adjustment = 0;
+        const actualShare = acquired_amount / safeTotal;
+        const proportionalTax = Math.floor(total_tax_amount * actualShare);
+        
+        let adjustmentAmount = 0;
 
         if (person.two_fold_addition) {
-            adjustment += distributed_tax * 0.2;
+            const surcharge = Math.floor(proportionalTax * 0.2);
+            adjustmentAmount += surcharge;
         }
 
         if (person.heir_type === HeirType.SPOUSE) {
-            const spouseLegalShareValue = (this.calculateSpouseLegalShare(heirs) * total_amount);
-            const reductionLimit = Math.max(160_000_000, spouseLegalShareValue);
-            const taxForSpouse = distributed_tax + (person.two_fold_addition ? distributed_tax * 0.2 : 0);
-            
-            let reductionAmount;
-            if (acquired_amount >= reductionLimit) {
-                reductionAmount = taxForSpouse;
-            } else {
-                const statutoryTaxProportion = total_tax_amount > 0 ? (total_tax_amount * person.inheritance_share) : 0;
-                reductionAmount = Math.min(taxForSpouse, statutoryTaxProportion);
-            }
-            adjustment -= reductionAmount;
+          const spouseStatutoryShare = this.calculateSpouseLegalShare(heirs);
+          const reductionAssetLimit = Math.max(160_000_000, total_amount * spouseStatutoryShare);
+          const reductionBaseAmount = Math.min(acquired_amount, reductionAssetLimit);
+          
+          const baseForReductionCalc = total_amount > 0 ? total_amount : 1;
+          const maxReduction = Math.floor(total_tax_amount * (reductionBaseAmount / baseForReductionCalc));
+          
+          const deduction = Math.min(proportionalTax, maxReduction);
+          adjustmentAmount -= deduction;
         }
         
-        const final_tax_amount = Math.max(0, distributed_tax + adjustment);
+        const final_tax_amount = Math.max(0, proportionalTax + adjustmentAmount);
         total_final_tax_amount += final_tax_amount;
 
         division_details.push({
             heir_id: person.id, name: person.name, relationship: person.relationship,
             acquired_amount: acquired_amount,
-            distributed_tax: distributed_tax,
-            adjustment: adjustment,
+            distributed_tax: proportionalTax,
+            adjustment: adjustmentAmount,
             final_tax_amount: final_tax_amount
         });
     }
