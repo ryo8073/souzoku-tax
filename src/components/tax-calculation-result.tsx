@@ -69,68 +69,95 @@ export function TaxCalculationResult({ result, taxableAmount, isLoading }: TaxCa
   const legalHeirsDetails = result.heir_tax_details || [];
 
   return (
-    <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-      <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg">
-        <CardTitle className="text-2xl font-bold text-blue-900">
-          法定相続による税額計算結果
-        </CardTitle>
-        <CardDescription className="text-blue-700">
-          民法に定められた法定相続分に基づいて計算された各相続人の納税額です。
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="p-6">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>相続人</TableHead>
-                <TableHead className="text-right">法定相続分</TableHead>
-                <TableHead className="text-right">取得金額</TableHead>
-                <TableHead className="text-right">納税額</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {legalHeirsDetails.map((heir) => (
-                <TableRow key={heir.heir_id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold">{heir.name}</span>
-                      <Badge variant="outline" className="text-xs">
-                        {heir.relationship}
-                      </Badge>
-                      {heir.two_fold_addition && (
-                         <Badge variant="destructive" className="text-xs">
-                           2割加算
-                         </Badge>
-                       )}
-                    </div>
+    <>
+      <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg">
+          <CardTitle className="text-2xl font-bold text-blue-900">
+            法定相続による税額計算結果
+          </CardTitle>
+          <CardDescription className="text-blue-700">
+            民法に定められた法定相続分に基づいて計算された各相続人の納税額です。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>相続人</TableHead>
+                  <TableHead className="text-right">法定相続分</TableHead>
+                  <TableHead className="text-right">取得金額</TableHead>
+                  <TableHead className="text-right">納税額</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {legalHeirsDetails.map((heir) => (
+                  <TableRow key={heir.heir_id}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">{heir.name}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {heir.relationship}
+                        </Badge>
+                        {heir.two_fold_addition && (
+                          <Badge variant="destructive" className="text-xs">
+                            2割加算
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {heir.legal_share_fraction}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatCurrency(heir.legal_share_amount)}円
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatCurrency(heir.tax_before_addition)}円
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+              <TableFooter>
+                <TableRow className="bg-blue-50">
+                  <TableCell colSpan={3} className="font-semibold text-right text-blue-800">
+                    相続税の総額
                   </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {heir.legal_share_fraction}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrency(heir.legal_share_amount)}円
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrency(heir.tax_before_addition)}円
+                  <TableCell className="text-right font-bold text-lg text-blue-800 font-mono">
+                    {formatCurrency(result.total_tax_amount)}円
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-            <TableFooter>
-              <TableRow className="bg-blue-50">
-                <TableCell colSpan={3} className="font-semibold text-right text-blue-800">
-                  相続税の総額
-                </TableCell>
-                <TableCell className="text-right font-bold text-lg text-blue-800 font-mono">
-                  {formatCurrency(result.total_tax_amount)}円
-                </TableCell>
+              </TableFooter>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+      
+      <Card className="mt-6 shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+        <CardContent className="p-0">
+          <Table>
+            <TableBody>
+              <TableRow>
+                <TableCell className="font-semibold bg-slate-50 w-1/3">課税価格の合計額</TableCell>
+                <TableCell className="text-right font-mono text-lg">{formatCurrency(taxableAmount)}円</TableCell>
               </TableRow>
-            </TableFooter>
+              <TableRow>
+                <TableCell className="font-semibold bg-slate-50">基礎控除</TableCell>
+                <TableCell className="text-right font-mono text-lg">{formatCurrency(result.basic_deduction)}円</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-semibold bg-slate-50">課税遺産総額</TableCell>
+                <TableCell className="text-right font-mono text-lg">{formatCurrency(result.taxable_estate)}円</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-semibold bg-slate-50">相続税総額</TableCell>
+                <TableCell className="text-right font-mono text-lg font-bold text-blue-800">{formatCurrency(result.total_tax_amount)}円</TableCell>
+              </TableRow>
+            </TableBody>
           </Table>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </>
   );
 }
 

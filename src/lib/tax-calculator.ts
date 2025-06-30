@@ -177,7 +177,7 @@ export class InheritanceTaxCalculator {
       legal_heirs: heirs,
       total_heirs_count: this.countLegalHeirsForDeduction(heirs),
       basic_deduction: basicDeduction,
-      taxable_inheritance: taxableEstate,
+      taxable_estate: taxableEstate,
       total_tax_amount: Math.round(total_tax_amount),
       heir_tax_details
     };
@@ -252,113 +252,112 @@ export class InheritanceTaxCalculator {
   private toFraction(decimal: number, tolerance = 1.0E-6): string {
     if (decimal === 0) return "0";
     if (decimal === 1) return "1";
-    let h1=1, h2=0, k1=0, k2=1;
+    let h1 = 1, h2 = 0, k1 = 0, k2 = 1;
     let b = decimal;
     do {
-        const a = Math.floor(b);
-        let aux = h1; h1 = a*h1+h2; h2 = aux;
-        aux = k1; k1 = a*k1+k2; k2 = aux;
-        b = 1/(b-a);
-    } while (Math.abs(decimal-h1/k1) > decimal*tolerance);
-    
+      let a = Math.floor(b);
+      let aux = h1; h1 = a * h1 + h2; h2 = aux;
+      aux = k1; k1 = a * k1 + k2; k2 = aux;
+      b = 1 / (b - a);
+    } while (Math.abs(decimal - h1 / k1) > decimal * tolerance);
     return `${h1}/${k1}`;
   }
 
-  /**
-   * 割合を金額に変換
-   */
-  private convertPercentageToAmount(percentages: Record<string, number>, totalAmount: number, roundingMethod: string): Record<string, number> {
+  private convertPercentageToAmount(
+    percentages: Record<string, number>,
+    totalAmount: number,
+    roundingMethod: 'round' | 'floor' | 'ceil'
+  ): Record<string, number> {
     const amounts: Record<string, number> = {};
-    let totalAllocated = 0;
-    const heirIds = Object.keys(percentages);
-    
-    heirIds.forEach(id => {
-      const percentage = percentages[id] / 100;
+    let totalCalculatedAmount = 0;
+    const keys = Object.keys(percentages);
+  
+    keys.forEach(key => {
+      const percentage = percentages[key] / 100;
       let amount = totalAmount * percentage;
-      switch(roundingMethod) {
-        case 'floor': amount = Math.floor(amount); break;
-        case 'ceil': amount = Math.ceil(amount); break;
-        default: amount = Math.round(amount); break;
+      if (roundingMethod === 'floor') {
+        amount = Math.floor(amount);
+      } else if (roundingMethod === 'ceil') {
+        amount = Math.ceil(amount);
+      } else {
+        amount = Math.round(amount);
       }
-      amounts[id] = amount;
-      totalAllocated += amount;
+      amounts[key] = amount;
+      totalCalculatedAmount += amount;
     });
-
-    const diff = totalAmount - totalAllocated;
-    if (diff !== 0 && heirIds.length > 0) {
-        const adjustment = diff > 0 ? 1 : -1;
-        for (let i = 0; i < Math.abs(diff); i++) {
-            amounts[heirIds[i % heirIds.length]] += adjustment;
-        }
+  
+    // Adjust for rounding errors
+    let difference = totalAmount - totalCalculatedAmount;
+    if (difference !== 0) {
+      // Distribute the difference among the heirs, starting from the largest share
+      const sortedKeys = keys.sort((a, b) => percentages[b] - percentages[a]);
+      let i = 0;
+      while (difference !== 0) {
+        const key = sortedKeys[i % sortedKeys.length];
+        const adjustment = difference > 0 ? 1 : -1;
+        amounts[key] += adjustment;
+        difference -= adjustment;
+        i++;
+      }
     }
     return amounts;
-  }
+  }  
 
-  /**
-   * 配偶者の法定相続分を取得
-   */
   private calculateSpouseLegalShare(heirs: Heir[]): number {
     const spouse = heirs.find(h => h.heir_type === HeirType.SPOUSE);
     return spouse ? spouse.inheritance_share : 0;
   }
 
-  /**
-   * 税額速算表から税額を計算
-   */
   private calculateTaxFromTable(amount: number): number {
     if (amount <= 0) return 0;
-    const tier = TAX_TABLE.find(row => amount <= row.max_amount);
-    if (tier) {
-      return amount * tier.tax_rate - tier.deduction;
+    const row = TAX_TABLE.find(r => amount <= r.max_amount);
+    if (row) {
+      return amount * row.tax_rate - row.deduction;
     }
-    const lastTier = TAX_TABLE[TAX_TABLE.length - 1];
-    return amount * lastTier.tax_rate - lastTier.deduction;
+    // Fallback for amounts larger than the max in the table (shouldn't happen with Infinity)
+    const lastRow = TAX_TABLE[TAX_TABLE.length - 1];
+    return amount * lastRow.tax_rate - lastRow.deduction;
   }
 
-  /**
-   * 分割入力データのバリデーション
-   */
   validateDivisionInput(divisionInput: DivisionInput, _heirs: Heir[]): ValidationResult {
-    const { mode, amounts = {}, percentages = {}, total_amount } = divisionInput;
     const errors: ValidationError[] = [];
+    const { mode, amounts, percentages, total_amount } = divisionInput;
 
     if (mode === 'amount') {
-        const totalInputAmount = Object.values(amounts).reduce((sum, val) => sum + (Number(val) || 0), 0);
-        if (Math.round(totalInputAmount) !== Math.round(total_amount)) {
-            errors.push({ field: 'total', code: 'total_mismatch', message: '合計額が一致しません。' });
+        if (!amounts || Object.keys(amounts).length === 0) {
+            errors.push({ field: 'amounts', code: 'missing', message: '金額が指定されていません。' });
+        } else {
+            const totalInputAmount = Object.values(amounts).reduce((sum, val) => sum + val, 0);
+            if (Math.round(totalInputAmount) !== total_amount) {
+                errors.push({ field: 'total_amount', code: 'mismatch', message: '合計額が課税価格と一致しません。' });
+            }
         }
-    } else { // percentage
-        const totalInputPercentage = Object.values(percentages).reduce((sum, val) => sum + (Number(val) || 0), 0);
-        if (Math.abs(totalInputPercentage - 100) > 0.01) {
-            errors.push({ field: 'total', code: 'total_mismatch', message: '合計割合が100%になりません。' });
+    } else if (mode === 'percentage') {
+        if (!percentages || Object.keys(percentages).length === 0) {
+            errors.push({ field: 'percentages', code: 'missing', message: '割合が指定されていません。' });
+        } else {
+            const totalInputPercentage = Object.values(percentages).reduce((sum, val) => sum + val, 0);
+            if (Math.abs(totalInputPercentage - 100) > 0.01) {
+                errors.push({ field: 'total_percentage', code: 'mismatch', message: '合計割合が100%になりません。' });
+            }
         }
     }
+
     return { is_valid: errors.length === 0, errors };
   }
 
-  /**
-   * 家族構成入力のバリデーション
-   */
   validateFamilyStructure(familyStructure: FamilyStructure): ValidationResult {
     const errors: ValidationError[] = [];
-    const { children_count, adopted_children_count, grandchild_adopted_count, parents_alive, siblings_count, half_siblings_count } = familyStructure;
+    const { children_count, adopted_children_count } = familyStructure;
 
-    if (children_count < 0 || adopted_children_count < 0 || grandchild_adopted_count < 0) {
-      errors.push({ field: 'children_count', code: 'negative_number', message: '人数に負の値は入力できません。'});
+    if (adopted_children_count > children_count) {
+        errors.push({
+            field: 'adopted_children_count',
+            code: 'invalid_count',
+            message: '養子の数は子の数を超えることはできません。'
+        });
     }
-    if (children_count < adopted_children_count) {
-      errors.push({ field: 'adopted_children_count', code: 'invalid_adopted_count', message: '養子の数は子供の総数以下である必要があります。'});
-    }
-    if (adopted_children_count < grandchild_adopted_count) {
-      errors.push({ field: 'grandchild_adopted_count', code: 'invalid_grandchild_adopted_count', message: '孫養子の数は養子の数以下である必要があります。'});
-    }
-    if (parents_alive < 0 || parents_alive > 2) {
-      errors.push({ field: 'parents_alive', code: 'invalid_parents_count', message: '親の数は0-2の間である必要があります。'});
-    }
-    if (siblings_count < 0 || half_siblings_count < 0) {
-      errors.push({ field: 'siblings_count', code: 'invalid_siblings_count', message: '兄弟の数は0以上である必要があります。'});
-    }
+
     return { is_valid: errors.length === 0, errors };
   }
 }
-

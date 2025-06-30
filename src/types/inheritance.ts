@@ -44,7 +44,7 @@ export interface TaxCalculationResult {
   legal_heirs: Heir[];
   total_heirs_count: number;
   basic_deduction: number;
-  taxable_inheritance: number;
+  taxable_estate: number;
   total_tax_amount: number;
   heir_tax_details: {
     heir_id: string;

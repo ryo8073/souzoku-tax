@@ -87,7 +87,19 @@ export function ActualDivisionForm({
   };
 
   const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('ja-JP').format(amount);
+    return new Intl.NumberFormat('ja-JP').format(Math.round(amount));
+  };
+
+  const calculatePercentage = (amount: string) => {
+    const numericAmount = Number(amount.replace(/,/g, ''));
+    if (!totalAmount || isNaN(numericAmount) || numericAmount === 0) return '0.00';
+    return ((numericAmount / totalAmount) * 100).toFixed(2);
+  };
+
+  const calculateAmountFromPercentage = (percentage: string) => {
+    const numericPercentage = Number(percentage);
+    if (isNaN(numericPercentage) || totalAmount === 0) return formatCurrency(0);
+    return formatCurrency(totalAmount * (numericPercentage / 100));
   };
 
   const formatNumber = (value: string): string => {
@@ -219,6 +231,7 @@ export function ActualDivisionForm({
                         className="w-full text-right"
                       />
                       <span>円</span>
+                      <span className="text-sm text-gray-500 w-24 text-right">({calculatePercentage(formData.amounts[heir.id] || '0')}%)</span>
                     </div>
                   </div>
                 ))}
@@ -232,14 +245,18 @@ export function ActualDivisionForm({
                         className="w-full text-right"
                       />
                       <span>円</span>
+                      <span className="text-sm text-gray-500 w-24 text-right">({calculatePercentage(formData.amounts[person.id] || '0')}%)</span>
                       <Button variant="ghost" size="icon" onClick={() => removeNonHeirPerson(person.id)}><Minus className="h-4 w-4" /></Button>
                     </div>
                   </div>
                 ))}
                  <Button type="button" variant="outline" onClick={addNonHeirPerson}><Plus className="mr-2 h-4 w-4" /> 法定相続人以外を追加</Button>
-                 <div className="p-4 border rounded-md font-semibold flex justify-between">
+                 <div className="p-4 border rounded-md font-semibold flex justify-between items-center">
                    <span>合計取得金額:</span>
-                   <span>{formatCurrency(totalInputAmount)} 円</span>
+                   <div className='text-right'>
+                    <span>{formatCurrency(totalInputAmount)} 円</span>
+                    <span className="text-sm text-gray-500 ml-2">(100.00%)</span>
+                   </div>
                  </div>
               </div>
             </TabsContent>
@@ -262,6 +279,7 @@ export function ActualDivisionForm({
                           className="w-full text-right"
                         />
                         <span>%</span>
+                        <span className="text-sm text-gray-500 w-32 text-right">({calculateAmountFromPercentage(formData.percentages[heir.id] || '0')})</span>
                       </div>
                     </div>
                 ))}
@@ -275,6 +293,7 @@ export function ActualDivisionForm({
                               className="w-full text-right"
                           />
                           <span>%</span>
+                          <span className="text-sm text-gray-500 w-32 text-right">({calculateAmountFromPercentage(formData.percentages[person.id] || '0')})</span>
                           <Button variant="ghost" size="icon" onClick={() => removeNonHeirPerson(person.id)}><Minus className="h-4 w-4" /></Button>
                        </div>
                     </div>
@@ -282,9 +301,12 @@ export function ActualDivisionForm({
                 <Button type="button" variant="outline" onClick={addNonHeirPerson}><Plus className="mr-2 h-4 w-4" /> 法定相続人以外を追加</Button>
                 <div className="p-4 border rounded-md font-semibold flex justify-between">
                    <span>合計取得割合:</span>
-                   <span>{totalInputPercentage.toFixed(2)} %</span>
+                   <div className='text-right'>
+                    <span>{totalInputPercentage.toFixed(2)} %</span>
+                    <span className="text-sm text-gray-500 ml-2">({formatCurrency(totalAmount)})</span>
+                   </div>
                 </div>
-                 <div className="mt-2">
+                 <div className="mt-4">
                    <Label>端数処理</Label>
                    <Select value={formData.roundingMethod} onValueChange={v => setFormData(p => ({...p, roundingMethod: v as 'round'|'floor'|'ceil'}))}>
                       <SelectTrigger><SelectValue/></SelectTrigger>
