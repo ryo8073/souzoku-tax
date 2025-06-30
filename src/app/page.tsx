@@ -8,6 +8,7 @@ import { Calculator, Users, PieChart, FileText, RotateCcw } from 'lucide-react';
 import { FamilyStructureForm } from '@/components/family-structure-form';
 import { TaxCalculationResult } from '@/components/tax-calculation-result';
 import { ActualDivisionForm } from '@/components/actual-division-form';
+import { ActualDivisionResult } from '@/components/actual-division-result';
 import { FamilyStructure, Heir, TaxCalculationResult as TaxResult, DivisionResult, DivisionInput } from '@/types/inheritance';
 
 interface FormInputData {
@@ -257,40 +258,17 @@ export default function InheritanceTaxCalculator() {
 
             <TabsContent value="division" className="space-y-6">
               {taxCalculationResult && (
-                <>
-                  <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-                    <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-lg">
-                      <CardTitle className="flex items-center gap-2 text-purple-900">
-                        <PieChart className="h-5 w-5" />
-                        実際の遺産分割
-                      </CardTitle>
-                      <CardDescription className="text-purple-700">
-                        法定相続分とは異なる実際の遺産分割がある場合の税額配分を計算します。
-                        金額指定または割合指定を選択できます。
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                      <ActualDivisionForm 
-                        heirs={legalHeirs}
-                        totalAmount={taxableAmount}
-                        totalTaxAmount={taxCalculationResult.total_tax_amount}
-                        _familyStructure={familyStructure}
-                        onSubmit={handleActualDivisionSubmit}
-                        result={actualDivisionResult}
-                        isLoading={isLoading}
-                      />
-                    </CardContent>
-                  </Card>
-                  <div className="flex justify-center">
-                    <Button 
-                      onClick={resetCalculation} 
-                      variant="outline"
-                      className="hover:bg-blue-50"
-                    >
-                      新しい計算を開始
-                    </Button>
-                  </div>
-                </>
+                <ActualDivisionForm
+                  heirs={legalHeirs}
+                  totalAmount={taxableAmount}
+                  totalTaxAmount={taxCalculationResult.total_tax_amount}
+                  _familyStructure={familyStructure}
+                  onSubmit={handleActualDivisionSubmit}
+                  isLoading={isLoading}
+                />
+              )}
+              {actualDivisionResult && (
+                <ActualDivisionResult result={actualDivisionResult} />
               )}
             </TabsContent>
           </Tabs>

@@ -11,14 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import {
   Users,
   FileText,
-  Calculator,
-  Shield,
-  TrendingUp,
   CheckCircle,
 } from 'lucide-react';
 import {
   TaxCalculationResult as TaxCalculationResultType,
-  TAX_TABLE,
 } from '@/types/inheritance';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -36,15 +32,6 @@ export function TaxCalculationResult({
   const formatCurrency = (amount: number | undefined): string => {
     if (amount === undefined) return '-';
     return new Intl.NumberFormat('ja-JP').format(Math.round(amount));
-  };
-
-  const getTaxRateAndDeduction = (amount: number | undefined) => {
-    if (amount === undefined) return { tax_rate: 0, deduction: 0 };
-    const tier = TAX_TABLE.find((row) => amount <= row.max_amount);
-    return {
-      tax_rate: tier?.tax_rate || 0,
-      deduction: tier?.deduction || 0,
-    };
   };
 
   if (isLoading) {
@@ -69,57 +56,12 @@ export function TaxCalculationResult({
     );
   }
 
+  const legalHeirsDetails = result.heir_tax_details.filter(
+    (heir) => heir.relationship !== 'other'
+  );
+
   return (
     <div className="space-y-6 mt-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-blue-700 flex items-center gap-2">
-              <Calculator className="h-4 w-4" />
-              課税遺産総額
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-900">
-              {formatCurrency(result.taxable_inheritance)}円
-            </div>
-            <p className="text-xs text-blue-600 mt-1">課税価格 - 基礎控除</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-green-200 bg-gradient-to-br from-green-50 to-green-100">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-green-700 flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              基礎控除額
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-900">
-              {formatCurrency(result.basic_deduction)}円
-            </div>
-            <p className="text-xs text-green-600 mt-1">
-              3,000万円 + 600万円 × {result.total_heirs_count}人
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-purple-700 flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              相続税総額
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-900">
-              {formatCurrency(result.total_tax_amount)}円
-            </div>
-            <p className="text-xs text-purple-600 mt-1">法定相続分による計算</p>
-          </CardContent>
-        </Card>
-      </div>
-
       <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
         <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-t-lg">
           <CardTitle className="text-xl flex items-center">
@@ -135,16 +77,11 @@ export function TaxCalculationResult({
                 <tr className="border-b">
                   <th className="p-3 text-left font-semibold">相続人</th>
                   <th className="p-3 text-right font-semibold">法定相続分</th>
-                  <th className="p-3 text-right font-semibold">税率</th>
-                  <th className="p-3 text-right font-semibold">控除額</th>
                   <th className="p-3 text-right font-semibold">相続税額</th>
                 </tr>
               </thead>
               <tbody>
-                {result.heir_tax_details.map((heir) => {
-                  const { tax_rate, deduction } = getTaxRateAndDeduction(
-                    heir.legal_share_amount
-                  );
+                {legalHeirsDetails.map((heir) => {
                   const sharePercentage =
                     result.taxable_inheritance + result.basic_deduction > 0
                       ? ((heir.legal_share_amount || 0) /
@@ -157,7 +94,7 @@ export function TaxCalculationResult({
                     <tr key={heir.heir_id} className="border-b">
                       <td className="p-3">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium">{heir.name}</span>
+                          <span className="font-medium">{heir.name.replace(/\s*\d+$/, '')}</span>
                           <Badge variant="outline" className="text-xs">
                             {heir.relationship}
                           </Badge>
@@ -174,12 +111,6 @@ export function TaxCalculationResult({
                           ({sharePercentage.toFixed(1)}%)
                         </div>
                       </td>
-                      <td className="p-3 text-right">
-                        {(tax_rate * 100).toFixed(0)}%
-                      </td>
-                      <td className="p-3 text-right">
-                        {formatCurrency(deduction)}円
-                      </td>
                       <td className="p-3 text-right text-purple-600 font-bold">
                         {formatCurrency(heir.tax_before_addition)}円
                       </td>
@@ -189,7 +120,7 @@ export function TaxCalculationResult({
               </tbody>
               <tfoot>
                 <tr className="bg-gray-50 font-bold">
-                  <td colSpan={4} className="p-4 text-right">
+                  <td colSpan={2} className="p-4 text-right">
                     合計
                   </td>
                   <td className="p-4 text-right text-purple-600">

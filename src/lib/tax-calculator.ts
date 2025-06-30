@@ -5,7 +5,6 @@ import {
   Heir,
   HeirType,
   RelationshipType,
-  HeirTaxDetail,
   TaxCalculationResult,
   DivisionInput,
   DivisionResult,
@@ -22,127 +21,77 @@ export class InheritanceTaxCalculator {
    */
   determineLegalHeirs(familyStructure: FamilyStructure): Heir[] {
     const heirs: Heir[] = [];
-    
-    const hasChildren = familyStructure.children_count > 0;
+    const hasChildren = familyStructure.children_count > 0 || familyStructure.adopted_children_count > 0 || familyStructure.grandchild_adopted_count > 0;
     const hasParents = familyStructure.parents_alive > 0;
     const hasSiblings = familyStructure.siblings_count > 0 || familyStructure.half_siblings_count > 0;
-
     let spouseShare = 0.0;
     let othersShare = 1.0;
 
     if (familyStructure.spouse_exists) {
-      if (hasChildren) {
-        spouseShare = 1/2;
-      } else if (hasParents) {
-        spouseShare = 2/3;
-      } else if (hasSiblings) {
-        spouseShare = 3/4;
-      } else {
-        spouseShare = 1.0;
-      }
-      
-      othersShare = 1.0 - spouseShare;
-      
-      heirs.push({
-        id: "spouse",
-        name: "配偶者",
-        heir_type: HeirType.SPOUSE,
-        relationship: RelationshipType.SPOUSE,
-        inheritance_share: spouseShare,
-        two_fold_addition: false
-      });
+        if (hasChildren) spouseShare = 0.5;
+        else if (hasParents) spouseShare = 2/3;
+        else if (hasSiblings) spouseShare = 0.75;
+        else spouseShare = 1.0;
+        othersShare = 1.0 - spouseShare;
+        heirs.push({
+            id: "spouse", name: "配偶者", heir_type: HeirType.SPOUSE, relationship: RelationshipType.SPOUSE,
+            inheritance_share: spouseShare, two_fold_addition: false
+        });
     }
 
-    // 第1順位: 子供（直系卑属）
     if (hasChildren) {
-      const totalChildren = familyStructure.children_count;
-      const individualShare = totalChildren > 0 ? othersShare / totalChildren : 0;
-      
-      for (let i = 0; i < totalChildren; i++) {
-        const isAdopted = i < familyStructure.adopted_children_count;
-        const isGrandchildAdopted = isAdopted && (i < familyStructure.grandchild_adopted_count);
-        
-        let name: string;
-        let relationship: RelationshipType;
-        
-        if (isGrandchildAdopted) {
-          name = `孫養子${i + 1}`;
-          relationship = RelationshipType.GRANDCHILD_ADOPTED;
-        } else if (isAdopted) {
-          name = `養子${i + 1}`;
-          relationship = RelationshipType.ADOPTED_CHILD;
-        } else {
-          name = `子供${i + 1}`;
-          relationship = RelationshipType.CHILD;
+        const totalChildren = familyStructure.children_count + familyStructure.adopted_children_count;
+        const individualShare = totalChildren > 0 ? othersShare / totalChildren : 0;
+        let child_count = 0;
+        let adopted_count = 0;
+
+        for (let i = 0; i < familyStructure.children_count; i++) {
+            child_count++;
+            heirs.push({
+                id: `child_${child_count}`, name: `子${child_count}`, heir_type: HeirType.CHILD, relationship: RelationshipType.CHILD,
+                inheritance_share: individualShare, two_fold_addition: false, is_adopted: false
+            });
         }
-
-        heirs.push({
-          id: `child_${i+1}`,
-          name,
-          heir_type: HeirType.CHILD,
-          relationship,
-          inheritance_share: individualShare,
-          two_fold_addition: isGrandchildAdopted,
-          is_adopted: isAdopted
-        });
-      }
-    }
-    // 第2順位: 直系尊属（子供がいない場合）
-    else if (hasParents) {
-      const individualShare = othersShare / familyStructure.parents_alive;
-      
-      for (let i = 0; i < familyStructure.parents_alive; i++) {
-        heirs.push({
-          id: `parent_${i+1}`,
-          name: `親${i+1}`,
-          heir_type: HeirType.PARENT,
-          relationship: RelationshipType.PARENT,
-          inheritance_share: individualShare,
-          two_fold_addition: false // 親は２割加算の対象外
-        });
-      }
-    }
-    // 第3順位: 兄弟姉妹（子供も直系尊属もいない場合）
-    else if (hasSiblings) {
-      const totalUnits = familyStructure.siblings_count + familyStructure.half_siblings_count / 2;
-      const fullSiblingShare = totalUnits > 0 ? othersShare / totalUnits : 0;
-      const halfSiblingShare = fullSiblingShare / 2;
-      
-      for (let i = 0; i < familyStructure.siblings_count; i++) {
-        heirs.push({
-          id: `sibling_${i+1}`,
-          name: `兄弟姉妹${i+1}`,
-          heir_type: HeirType.SIBLING,
-          relationship: RelationshipType.SIBLING,
-          inheritance_share: fullSiblingShare,
-          two_fold_addition: true
-        });
-      }
-      
-      for (let i = 0; i < familyStructure.half_siblings_count; i++) {
-        heirs.push({
-          id: `half_sibling_${i+1}`,
-          name: `半血兄弟姉妹${i+1}`,
-          heir_type: HeirType.SIBLING,
-          relationship: RelationshipType.HALF_SIBLING,
-          inheritance_share: halfSiblingShare,
-          two_fold_addition: true
-        });
-      }
+        for (let i = 0; i < familyStructure.adopted_children_count; i++) {
+            adopted_count++;
+            const isGrandchild = i < familyStructure.grandchild_adopted_count;
+            heirs.push({
+                id: `adopted_${adopted_count}`, name: isGrandchild ? `孫養子${adopted_count}` : `養子${adopted_count}`,
+                heir_type: HeirType.CHILD, relationship: isGrandchild ? RelationshipType.GRANDCHILD_ADOPTED : RelationshipType.ADOPTED_CHILD,
+                inheritance_share: individualShare, two_fold_addition: isGrandchild, is_adopted: true
+            });
+        }
+    } else if (hasParents) {
+        const individualShare = othersShare / familyStructure.parents_alive;
+        for (let i = 0; i < familyStructure.parents_alive; i++) {
+            heirs.push({
+                id: `parent_${i+1}`, name: `親${i+1}`, heir_type: HeirType.PARENT, relationship: RelationshipType.PARENT,
+                inheritance_share: individualShare, two_fold_addition: false
+            });
+        }
+    } else if (hasSiblings) {
+        const totalUnits = familyStructure.siblings_count + familyStructure.half_siblings_count * 0.5;
+        const fullSiblingShare = totalUnits > 0 ? othersShare / totalUnits : 0;
+        for (let i = 0; i < familyStructure.siblings_count; i++) {
+            heirs.push({
+                id: `sibling_${i+1}`, name: `兄弟姉妹${i+1}`, heir_type: HeirType.SIBLING, relationship: RelationshipType.SIBLING,
+                inheritance_share: fullSiblingShare, two_fold_addition: true
+            });
+        }
+        for (let i = 0; i < familyStructure.half_siblings_count; i++) {
+            heirs.push({
+                id: `half_sibling_${i+1}`, name: `半血兄弟姉妹${i+1}`, heir_type: HeirType.SIBLING, relationship: RelationshipType.HALF_SIBLING,
+                inheritance_share: fullSiblingShare * 0.5, two_fold_addition: true
+            });
+        }
     }
 
-    // 法定相続人以外の人を追加（実際の分割計算で使用するため）
     for (let i = 0; i < familyStructure.non_heirs_count; i++) {
-      heirs.push({
-        id: `non_heir_${i+1}`,
-        name: `法定相続人以外${i+1}`,
-        heir_type: HeirType.OTHER,
-        relationship: RelationshipType.OTHER,
-        inheritance_share: 0.0,
-        two_fold_addition: true
-      });
+        heirs.push({
+            id: `non_heir_${i+1}`, name: `法定相続人以外${i+1}`, heir_type: HeirType.OTHER, relationship: RelationshipType.OTHER,
+            inheritance_share: 0, two_fold_addition: true
+        });
     }
-    
     return heirs;
   }
 
@@ -158,102 +107,64 @@ export class InheritanceTaxCalculator {
    * 基礎控除計算用の法定相続人数を計算（養子の制限を適用）
    */
   private countLegalHeirsForDeduction(heirs: Heir[]): number {
-    let count = 0;
-    let adoptedCount = 0;
-    let hasBiologicalChildren = false;
+    const legalHeirs = heirs.filter(h => h.heir_type !== HeirType.OTHER);
+    let biologicalChildrenCount = 0;
+    let adoptedChildrenCount = 0;
+    legalHeirs.forEach(h => {
+        if (h.heir_type === HeirType.CHILD && !h.is_adopted) biologicalChildrenCount++;
+        if (h.heir_type === HeirType.CHILD && h.is_adopted) adoptedChildrenCount++;
+    });
+
+    const adoptedLimit = biologicalChildrenCount > 0 ? 1 : 2;
+    const countedAdopted = Math.min(adoptedChildrenCount, adoptedLimit);
     
-    for (const heir of heirs) {
-      if (heir.heir_type === HeirType.SPOUSE) {
-        count += 1;
-      } else if (heir.heir_type === HeirType.CHILD) {
-        if (heir.is_adopted) {
-          adoptedCount += 1;
-        } else {
-          count += 1;
-          hasBiologicalChildren = true;
-        }
-      } else if ([HeirType.PARENT, HeirType.SIBLING].includes(heir.heir_type)) {
-        count += 1;
-      }
-    }
-    
-    // 養子の制限を適用
-    if (hasBiologicalChildren) {
-      // 実子がいる場合、養子は1人まで
-      count += Math.min(adoptedCount, 1);
-    } else {
-      // 実子がいない場合、養子は2人まで
-      count += Math.min(adoptedCount, 2);
-    }
-    
-    return count;
+    return legalHeirs.filter(h => h.heir_type !== HeirType.CHILD).length + biologicalChildrenCount + countedAdopted;
   }
 
   /**
    * 法定相続分による相続税計算
    */
   calculateTaxByLegalShare(taxableAmount: number, heirs: Heir[]): TaxCalculationResult {
-    // 基礎控除額の計算
     const basicDeduction = this.calculateBasicDeduction(heirs);
-    
-    // 課税遺産総額の計算
     const taxableEstate = Math.max(0, taxableAmount - basicDeduction);
-    
-    if (taxableEstate === 0) {
-      // 相続税がかからない場合
-      const heirDetails: HeirTaxDetail[] = [];
-      for (const heir of heirs) {
-        heirDetails.push({
-          heir_id: heir.id,
-          name: heir.name,
-          relationship: heir.relationship,
-          legal_share_amount: Math.floor(taxableAmount * heir.inheritance_share),
-          tax_before_addition: 0,
-          two_fold_addition: 0,
-          tax_after_addition: 0
-        });
+    const heir_tax_details: TaxCalculationResult['heir_tax_details'] = [];
+    let total_tax_amount = 0;
+
+    if (taxableEstate > 0) {
+      const tempDetails: { tax: number }[] = [];
+      let tempTotalTax = 0;
+      for (const heir of heirs.filter(h => h.heir_type !== HeirType.OTHER)) {
+        const heirTaxableAmount = taxableEstate * heir.inheritance_share;
+        const tax = this.calculateTaxFromTable(heirTaxableAmount);
+        tempDetails.push({ tax });
+        tempTotalTax += tax;
       }
+      total_tax_amount = tempTotalTax;
       
-      return {
-        legal_heirs: heirs,
-        total_heirs_count: heirs.length,
-        basic_deduction: basicDeduction,
-        taxable_inheritance: taxableEstate,
-        total_tax_amount: 0,
-        heir_tax_details: heirDetails
-      };
-    }
-    
-    // 各相続人の相続税額を計算
-    const heirDetails: HeirTaxDetail[] = [];
-    let totalTax = 0;
-    
-    for (const heir of heirs) {
-      // 法定相続分に応じた課税遺産額
-      const heirTaxableAmount = Math.floor(taxableEstate * heir.inheritance_share);
-      
-      // 相続税額の計算（2割加算前）
-      const taxBeforeAddition = this.calculateTaxFromTable(heirTaxableAmount);
-      totalTax += taxBeforeAddition;
-      
-      heirDetails.push({
-        heir_id: heir.id,
-        name: heir.name,
-        relationship: heir.relationship,
-        legal_share_amount: Math.floor(taxableAmount * heir.inheritance_share),
-        tax_before_addition: taxBeforeAddition,
-        two_fold_addition: 0, // この段階では計算しない
-        tax_after_addition: taxBeforeAddition // 加算がないので同額
+      heirs.filter(h => h.heir_type !== HeirType.OTHER).forEach((heir, index) => {
+        heir_tax_details.push({
+          heir_id: heir.id, name: heir.name, relationship: heir.relationship,
+          legal_share_amount: taxableAmount * heir.inheritance_share,
+          tax_before_addition: tempDetails[index].tax
+        });
       });
+    } else {
+        heirs.filter(h => h.heir_type !== HeirType.OTHER).forEach(heir => {
+            heir_tax_details.push({
+                heir_id: heir.id, name: heir.name, relationship: heir.relationship,
+                legal_share_amount: taxableAmount * heir.inheritance_share,
+                tax_before_addition: 0
+            });
+        });
     }
-    
+
     return {
       legal_heirs: heirs,
-      total_heirs_count: heirs.length,
+      total_heirs_count: this.countLegalHeirsForDeduction(heirs),
       basic_deduction: basicDeduction,
       taxable_inheritance: taxableEstate,
-      total_tax_amount: totalTax,
-      heir_tax_details: heirDetails
+      total_tax_amount: Math.round(total_tax_amount),
+      heir_tax_details
     };
   }
 
@@ -261,97 +172,92 @@ export class InheritanceTaxCalculator {
    * 実際の分割による相続税計算
    */
   calculateActualDivision(divisionInput: DivisionInput): DivisionResult {
-    const heirs = divisionInput.heirs;
-    const totalTaxByLegalShare = divisionInput.total_tax_amount;
-    const totalTaxableAmount = divisionInput.total_amount;
-
-    // 実際の取得金額を取得
-    let actualAmounts: Record<string, number>;
-    if (divisionInput.mode === 'amount') {
-      actualAmounts = divisionInput.amounts || {};
-    } else { // percentage
-      actualAmounts = this.convertPercentageToAmount(
-        divisionInput.percentages || {},
-        totalTaxableAmount,
-        divisionInput.rounding_method || 'round'
-      );
+    const { total_amount, total_tax_amount, heirs } = divisionInput;
+    let amounts = divisionInput.amounts || {};
+    if (divisionInput.mode === 'percentage' && divisionInput.percentages) {
+        amounts = this.convertPercentageToAmount(divisionInput.percentages, total_amount, divisionInput.rounding_method || 'round');
     }
 
-    const totalActualAmount = Object.values(actualAmounts).reduce((sum, amount) => sum + amount, 0);
-    const safeTotal = totalActualAmount === 0 ? 1 : totalActualAmount; // ゼロ除算を回避
+    const division_details: DivisionResult['division_details'] = [];
+    let total_final_tax_amount = 0;
+    const allRecipients = [...heirs];
 
-    const heirDetails: HeirTaxDetail[] = [];
-    let calculatedFinalTaxTotal = 0;
+    for (const person of allRecipients) {
+        const acquired_amount = amounts[person.id] || 0;
+        if (acquired_amount <= 0 && person.heir_type === HeirType.OTHER) continue;
 
-    for (const heir of heirs) {
-      const actualAmount = actualAmounts[heir.id] || 0;
-      const actualShare = actualAmount / safeTotal;
-      
-      const proportionalTax = Math.floor(totalTaxByLegalShare * actualShare);
-      
-      let adjustmentAmount = 0;
-      
-      // 2割加算
-      if (heir.two_fold_addition) {
-        const surcharge = Math.floor(proportionalTax * 0.2);
-        adjustmentAmount += surcharge;
-      }
+        const distributed_tax = total_amount > 0 ? (acquired_amount / total_amount) * total_tax_amount : 0;
+        let adjustment = 0;
 
-      // 配偶者税額軽減
-      if (heir.heir_type === HeirType.SPOUSE) {
-        const spouseStatutoryShare = this.calculateSpouseLegalShare(heirs);
-        const reductionAssetLimit = Math.max(160_000_000, totalTaxableAmount * spouseStatutoryShare);
-        const reductionBaseAmount = Math.min(actualAmount, reductionAssetLimit);
+        if (person.two_fold_addition) {
+            adjustment += distributed_tax * 0.2;
+        }
+
+        if (person.heir_type === HeirType.SPOUSE) {
+            const spouseLegalShareValue = (this.calculateSpouseLegalShare(heirs) * total_amount);
+            const reductionLimit = Math.max(160_000_000, spouseLegalShareValue);
+            const taxForSpouse = distributed_tax + (person.two_fold_addition ? distributed_tax * 0.2 : 0);
+            
+            let reductionAmount;
+            if (acquired_amount >= reductionLimit) {
+                reductionAmount = taxForSpouse;
+            } else {
+                const statutoryTaxProportion = total_tax_amount > 0 ? (total_tax_amount * person.inheritance_share) : 0;
+                reductionAmount = Math.min(taxForSpouse, statutoryTaxProportion);
+            }
+            adjustment -= reductionAmount;
+        }
         
-        const baseForReductionCalc = totalTaxableAmount > 0 ? totalTaxableAmount : 1;
-        const maxReduction = Math.floor(totalTaxByLegalShare * (reductionBaseAmount / baseForReductionCalc));
-        
-        const deduction = Math.min(proportionalTax, maxReduction);
-        adjustmentAmount -= deduction;
-      }
-      
-      const finalTax = Math.max(0, proportionalTax + adjustmentAmount);
-      calculatedFinalTaxTotal += finalTax;
+        const final_tax_amount = Math.max(0, distributed_tax + adjustment);
+        total_final_tax_amount += final_tax_amount;
 
-      heirDetails.push({
-        heir_id: heir.id,
-        heir_name: heir.name,
-        name: heir.name,
-        relationship: heir.relationship,
-        inheritance_amount: actualAmount,
-        tax_amount: proportionalTax,
-        surcharge_deduction_amount: adjustmentAmount,
-        final_tax_amount: finalTax
-      });
+        division_details.push({
+            heir_id: person.id, name: person.name, relationship: person.relationship,
+            acquired_amount: acquired_amount,
+            distributed_tax: distributed_tax,
+            adjustment: adjustment,
+            final_tax_amount: final_tax_amount
+        });
     }
-
+    
     return {
-      taxable_amount: totalTaxableAmount,
-      basic_deduction: this.calculateBasicDeduction(heirs),
-      taxable_estate: Math.max(0, totalTaxableAmount - this.calculateBasicDeduction(heirs)),
-      total_tax_amount: calculatedFinalTaxTotal,
-      heir_details: heirDetails
+      total_final_tax_amount: Math.round(total_final_tax_amount),
+      division_details: division_details.map(d => ({
+        ...d,
+        acquired_amount: Math.round(d.acquired_amount),
+        distributed_tax: Math.round(d.distributed_tax),
+        adjustment: Math.round(d.adjustment),
+        final_tax_amount: Math.round(d.final_tax_amount)
+      }))
     };
   }
 
   /**
    * 割合を金額に変換
    */
-  private convertPercentageToAmount(
-    percentages: Record<string, number>,
-    totalAmount: number,
-    roundingMethod: string
-  ): Record<string, number> {
+  private convertPercentageToAmount(percentages: Record<string, number>, totalAmount: number, roundingMethod: string): Record<string, number> {
     const amounts: Record<string, number> = {};
-    for (const [heirId, percentage] of Object.entries(percentages)) {
-      const amount = totalAmount * (percentage / 100);
-      if (roundingMethod === 'round') {
-        amounts[heirId] = Math.round(amount);
-      } else if (roundingMethod === 'floor') {
-        amounts[heirId] = Math.floor(amount);
-      } else { // ceil
-        amounts[heirId] = Math.ceil(amount);
+    let totalAllocated = 0;
+    const heirIds = Object.keys(percentages);
+    
+    heirIds.forEach(id => {
+      const percentage = percentages[id] / 100;
+      let amount = totalAmount * percentage;
+      switch(roundingMethod) {
+        case 'floor': amount = Math.floor(amount); break;
+        case 'ceil': amount = Math.ceil(amount); break;
+        default: amount = Math.round(amount); break;
       }
+      amounts[id] = amount;
+      totalAllocated += amount;
+    });
+
+    let diff = totalAmount - totalAllocated;
+    if (diff !== 0 && heirIds.length > 0) {
+        const adjustment = diff > 0 ? 1 : -1;
+        for (let i = 0; i < Math.abs(diff); i++) {
+            amounts[heirIds[i % heirIds.length]] += adjustment;
+        }
     }
     return amounts;
   }
@@ -360,94 +266,43 @@ export class InheritanceTaxCalculator {
    * 配偶者の法定相続分を取得
    */
   private calculateSpouseLegalShare(heirs: Heir[]): number {
-    for (const heir of heirs) {
-      if (heir.heir_type === HeirType.SPOUSE) {
-        return heir.inheritance_share;
-      }
-    }
-    return 0.0;
+    const spouse = heirs.find(h => h.heir_type === HeirType.SPOUSE);
+    return spouse ? spouse.inheritance_share : 0;
   }
 
   /**
    * 税額速算表から税額を計算
    */
   private calculateTaxFromTable(amount: number): number {
-    for (const row of TAX_TABLE) {
-      if (amount <= row.max_amount) {
-        const tax = (amount * row.tax_rate) - row.deduction;
-        return Math.floor(tax);
-      }
+    if (amount <= 0) return 0;
+    const tier = TAX_TABLE.find(row => amount <= row.max_amount);
+    if (tier) {
+      return amount * tier.tax_rate - tier.deduction;
     }
-    return 0;
+    const lastTier = TAX_TABLE[TAX_TABLE.length - 1];
+    return amount * lastTier.tax_rate - lastTier.deduction;
   }
 
   /**
    * 分割入力データのバリデーション
    */
   validateDivisionInput(divisionInput: DivisionInput, heirs: Heir[]): ValidationResult {
+    const { mode, amounts = {}, percentages = {}, total_amount } = divisionInput;
     const errors: ValidationError[] = [];
+    const allRecipients = [...heirs];
 
-    if (divisionInput.mode === 'amount') {
-      if (!divisionInput.amounts) {
-        errors.push({
-          field: "amounts",
-          code: "MISSING",
-          message: "各人の取得金額を入力してください。"
-        });
-      } else {
-        // すべての相続人が金額辞書に含まれているかチェック
-        for (const heir of heirs) {
-          if (!(heir.id in divisionInput.amounts)) {
-            errors.push({
-              field: "amounts",
-              code: "MISSING_HEIR",
-              message: `${heir.name}の金額がありません。`
-            });
-          }
+    if (mode === 'amount') {
+        const totalInputAmount = Object.values(amounts).reduce((sum, val) => sum + (Number(val) || 0), 0);
+        if (Math.round(totalInputAmount) !== Math.round(total_amount)) {
+            errors.push({ field: 'total', code: 'total_mismatch', message: '合計額が一致しません。' });
         }
-        
-        const totalAmounts = Object.values(divisionInput.amounts).reduce((sum, amount) => sum + amount, 0);
-        if (totalAmounts !== divisionInput.total_amount) {
-          errors.push({
-            field: "amounts",
-            code: "INVALID_SUM",
-            message: `取得金額の合計(${totalAmounts})が課税価格の合計額(${divisionInput.total_amount})と一致しません。`
-          });
+    } else { // percentage
+        const totalInputPercentage = Object.values(percentages).reduce((sum, val) => sum + (Number(val) || 0), 0);
+        if (Math.abs(totalInputPercentage - 100) > 0.01) {
+            errors.push({ field: 'total', code: 'total_mismatch', message: '合計割合が100%になりません。' });
         }
-      }
-    } else if (divisionInput.mode === 'percentage') {
-      if (!divisionInput.percentages) {
-        errors.push({
-          field: "percentages",
-          code: "MISSING",
-          message: "各人の取得割合を入力してください。"
-        });
-      } else {
-        for (const heir of heirs) {
-          if (!(heir.id in divisionInput.percentages)) {
-            errors.push({
-              field: "percentages",
-              code: "MISSING_HEIR",
-              message: `${heir.name}の割合がありません。`
-            });
-          }
-        }
-
-        const totalPercentages = Object.values(divisionInput.percentages).reduce((sum, percentage) => sum + percentage, 0);
-        if (Math.round(totalPercentages * 100000) / 100000 !== 100.0) {
-          errors.push({
-            field: "percentages",
-            code: "INVALID_SUM",
-            message: "取得割合の合計が100%になりません。"
-          });
-        }
-      }
     }
-
-    return {
-      is_valid: errors.length === 0,
-      errors: errors
-    };
+    return { is_valid: errors.length === 0, errors };
   }
 
   /**
@@ -455,75 +310,21 @@ export class InheritanceTaxCalculator {
    */
   validateFamilyStructure(familyStructure: FamilyStructure): ValidationResult {
     const errors: ValidationError[] = [];
-    
-    // 基本的な数値チェック
-    if (familyStructure.children_count < 0) {
-      errors.push({
-        field: "children_count",
-        code: "INVALID_VALUE",
-        message: "子供の数は0以上である必要があります"
-      });
-    }
-    
-    if (familyStructure.adopted_children_count < 0) {
-      errors.push({
-        field: "adopted_children_count",
-        code: "INVALID_VALUE",
-        message: "養子の数は0以上である必要があります"
-      });
-    }
-    
-    if (familyStructure.grandchild_adopted_count < 0) {
-      errors.push({
-        field: "grandchild_adopted_count",
-        code: "INVALID_VALUE",
-        message: "孫養子の数は0以上である必要があります"
-      });
-    }
-    
-    if (familyStructure.parents_alive < 0) {
-      errors.push({
-        field: "parents_alive",
-        code: "INVALID_VALUE",
-        message: "親の生存数は0以上である必要があります"
-      });
-    }
-    
-    if (familyStructure.siblings_count < 0) {
-      errors.push({
-        field: "siblings_count",
-        code: "INVALID_VALUE",
-        message: "兄弟姉妹の数は0以上である必要があります"
-      });
-    }
-    
-    if (familyStructure.half_siblings_count < 0) {
-      errors.push({
-        field: "half_siblings_count",
-        code: "INVALID_VALUE",
-        message: "半血兄弟姉妹の数は0以上である必要があります"
-      });
-    }
-    
-    // 法定相続人の存在チェック
-    const totalHeirs = (familyStructure.spouse_exists ? 1 : 0) +
-                      familyStructure.children_count +
-                      familyStructure.parents_alive +
-                      familyStructure.siblings_count +
-                      familyStructure.half_siblings_count;
-    
-    if (totalHeirs === 0) {
-      errors.push({
-        field: "general",
-        code: "NO_HEIRS",
-        message: "法定相続人が存在しません"
-      });
-    }
+    const { children_count, adopted_children_count, grandchild_adopted_count, parents_alive, siblings_count, half_siblings_count } = familyStructure;
 
-    return {
-      is_valid: errors.length === 0,
-      errors: errors
-    };
+    if (children_count < adopted_children_count) {
+        errors.push({ field: 'adopted_children_count', code: 'invalid_adopted_count', message: '養子の数は子の数以下である必要があります。'});
+    }
+    if (adopted_children_count < grandchild_adopted_count) {
+        errors.push({ field: 'grandchild_adopted_count', code: 'invalid_grandchild_adopted_count', message: '孫養子の数は養子の数以下である必要があります。'});
+    }
+    if (parents_alive < 0 || parents_alive > 2) {
+        errors.push({ field: 'parents_alive', code: 'invalid_parents_count', message: '親の数は0-2の間である必要があります。'});
+    }
+    if (siblings_count < 0 || half_siblings_count < 0) {
+        errors.push({ field: 'siblings_count', code: 'invalid_siblings_count', message: '兄弟の数は0以上である必要があります。'});
+    }
+    return { is_valid: errors.length === 0, errors };
   }
 }
 

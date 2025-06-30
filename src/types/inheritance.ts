@@ -40,28 +40,19 @@ export interface Heir {
   is_adopted?: boolean;
 }
 
-export interface HeirTaxDetail {
-  heir_id: string;
-  name: string;
-  relationship: string;
-  legal_share_amount?: number;
-  tax_before_addition?: number;
-  two_fold_addition?: number;
-  tax_after_addition?: number;
-  inheritance_amount?: number;
-  tax_amount?: number;
-  surcharge_deduction_amount?: number;
-  final_tax_amount?: number;
-  heir_name?: string;
-}
-
 export interface TaxCalculationResult {
   legal_heirs: Heir[];
   total_heirs_count: number;
   basic_deduction: number;
   taxable_inheritance: number;
   total_tax_amount: number;
-  heir_tax_details: HeirTaxDetail[];
+  heir_tax_details: {
+    heir_id: string;
+    name: string;
+    relationship: string;
+    legal_share_amount: number;
+    tax_before_addition: number;
+  }[];
 }
 
 export interface DivisionInput {
@@ -75,11 +66,16 @@ export interface DivisionInput {
 }
 
 export interface DivisionResult {
-  taxable_amount: number;
-  basic_deduction: number;
-  taxable_estate: number;
-  total_tax_amount: number;
-  heir_details: HeirTaxDetail[];
+  total_final_tax_amount: number;
+  division_details: {
+    heir_id: string;
+    name: string;
+    relationship: string;
+    acquired_amount: number;
+    distributed_tax: number;
+    adjustment: number;
+    final_tax_amount: number;
+  }[];
 }
 
 export interface ValidationError {
