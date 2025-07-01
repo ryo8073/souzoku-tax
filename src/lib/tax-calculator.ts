@@ -59,7 +59,8 @@ export class InheritanceTaxCalculator {
             adopted_count++;
             heirs.push({
                 id: `adopted_${adopted_count}`, name: `養子${adopted_count}`, heir_type: HeirType.CHILD, relationship: RelationshipType.ADOPTED_CHILD,
-                inheritance_share: individualShare, two_fold_addition: false, is_adopted: true
+                inheritance_share: individualShare, two_fold_addition: false, is_adopted: true,
+                is_unlimited_adopted: false
             });
         }
 
@@ -69,7 +70,8 @@ export class InheritanceTaxCalculator {
             heirs.push({
                 id: `grandchild_adopted_${grandchild_adopted_count}`, name: `孫養子${grandchild_adopted_count}`,
                 heir_type: HeirType.CHILD, relationship: RelationshipType.GRANDCHILD_ADOPTED,
-                inheritance_share: individualShare, two_fold_addition: true, is_adopted: true
+                inheritance_share: individualShare, two_fold_addition: true, is_adopted: true,
+                is_unlimited_adopted: false
             });
         }
     } else if (hasParents) {
@@ -119,17 +121,27 @@ export class InheritanceTaxCalculator {
    */
   private countLegalHeirsForDeduction(heirs: Heir[]): number {
     const legalHeirs = heirs.filter(h => h.heir_type !== HeirType.OTHER);
-    let biologicalChildrenCount = 0;
-    let adoptedChildrenCount = 0;
-    legalHeirs.forEach(h => {
-        if (h.heir_type === HeirType.CHILD && !h.is_adopted) biologicalChildrenCount++;
-        if (h.heir_type === HeirType.CHILD && h.is_adopted) adoptedChildrenCount++;
-    });
-
-    const adoptedLimit = biologicalChildrenCount > 0 ? 1 : 2;
-    const countedAdopted = Math.min(adoptedChildrenCount, adoptedLimit);
     
-    return legalHeirs.filter(h => h.heir_type !== HeirType.CHILD).length + biologicalChildrenCount + countedAdopted;
+    // 1. Count non-child heirs (spouse, parents, siblings)
+    const nonChildHeirsCount = legalHeirs.filter(h => h.heir_type !== HeirType.CHILD).length;
+
+    // 2. Separate children into biological, unlimited adopted, and limited adopted
+    const biologicalChildren = legalHeirs.filter(h => h.heir_type === HeirType.CHILD && !h.is_adopted);
+    const unlimitedAdoptedChildren = legalHeirs.filter(h => h.heir_type === HeirType.CHILD && h.is_adopted && h.is_unlimited_adopted);
+    const limitedAdoptedChildren = legalHeirs.filter(h => h.heir_type === HeirType.CHILD && h.is_adopted && !h.is_unlimited_adopted);
+
+    // 3. Determine if there are "real children" for the purpose of the limit
+    const hasBiologicalOrUnlimitedAdopted = biologicalChildren.length > 0 || unlimitedAdoptedChildren.length > 0;
+
+    // 4. Apply the limit to limited adopted children
+    const adoptedLimit = hasBiologicalOrUnlimitedAdopted ? 1 : 2;
+    const countedLimitedAdopted = Math.min(limitedAdoptedChildren.length, adoptedLimit);
+
+    // 5. Sum all parts
+    return nonChildHeirsCount 
+      + biologicalChildren.length 
+      + unlimitedAdoptedChildren.length 
+      + countedLimitedAdopted;
   }
 
   /**

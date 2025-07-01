@@ -38,6 +38,7 @@ export interface Heir {
   inheritance_share: number;
   two_fold_addition: boolean;
   is_adopted?: boolean;
+  is_unlimited_adopted?: boolean;
 }
 
 export interface TaxCalculationResult {

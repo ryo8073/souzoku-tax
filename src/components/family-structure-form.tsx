@@ -202,6 +202,19 @@ export function FamilyStructureForm({ onSubmit, initialData, isLoading = false }
                         <Label htmlFor="adoptedChildrenCount">うち、養子の数</Label>
                         <Input id="adoptedChildrenCount" type="number" min="0" max={parseInt(formData.childrenCount) || 0} value={formData.adoptedChildrenCount} onChange={(e) => handleInputChange('adoptedChildrenCount', e.target.value)} className={`mt-2 ${errors.adoptedChildrenCount ? 'border-red-500' : ''}`} disabled={isLoading} />
                         {errors.adoptedChildrenCount && <Alert variant="destructive" className="mt-2 py-2 px-3"><AlertCircle className="h-4 w-4" /><AlertDescription className="text-sm">{errors.adoptedChildrenCount}</AlertDescription></Alert>}
+                        <Alert className="mt-2 text-sm text-muted-foreground p-3 bg-gray-50 border-gray-200">
+                          <AlertCircle className="h-4 w-4 text-gray-500" />
+                          <AlertDescription>
+                            <p className="font-semibold text-gray-700">【養子の入力に関するご注意】</p>
+                            <p className='mt-1'>通常の養子縁組（普通養子縁組）の場合のみ、こちらの「養子の数」に入力してください。</p>
+                            <p className="mt-2 font-semibold text-gray-700">下記に該当する方は「実子」として扱われるため、「養子の数」には含めず「子の総数」に合算してください。</p>
+                            <ul className="list-disc pl-5 mt-1 space-y-1">
+                              <li>特別養子縁組による養子</li>
+                              <li>配偶者の実子（連れ子）で、被相続人の養子となった方</li>
+                              <li>代襲相続人となっている養子またはその子</li>
+                            </ul>
+                          </AlertDescription>
+                        </Alert>
                     </div>
                     <div>
                         <Label htmlFor="grandchildAdoptedCount">うち、孫養子（2割加算対象）の数</Label>
