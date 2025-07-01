@@ -169,7 +169,7 @@ export function FamilyStructureForm({ onSubmit, initialData, isLoading = false }
         <CardContent>
           <Label htmlFor="taxableAmount" className="font-semibold">課税価格の合計額 <span className="text-red-500">*</span></Label>
           <div className="relative mt-2">
-            <Input id="taxableAmount" type="text" value={formatNumber(formData.taxableAmount)} onChange={(e) => handleInputChange('taxableAmount', e.target.value.replace(/,/g, ''))} placeholder="例: 100,000,000" className={`text-xl font-mono text-right pr-10 ${errors.taxableAmount ? 'border-red-500' : ''}`} disabled={isLoading} />
+            <Input id="taxableAmount" type="text" inputMode="numeric" value={formatNumber(formData.taxableAmount)} onChange={(e) => handleInputChange('taxableAmount', e.target.value.replace(/,/g, ''))} placeholder="例: 100,000,000" className={`text-xl font-mono text-right pr-10 ${errors.taxableAmount ? 'border-red-500' : ''}`} disabled={isLoading} />
             <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500">円</span>
           </div>
           {errors.taxableAmount && <Alert variant="destructive" className="mt-2 py-2 px-3"><AlertCircle className="h-4 w-4" /><AlertDescription className="text-sm">{errors.taxableAmount}</AlertDescription></Alert>}
@@ -198,14 +198,14 @@ export function FamilyStructureForm({ onSubmit, initialData, isLoading = false }
             <CardContent className="space-y-4">
                 <div>
                     <Label htmlFor="childrenCount" className="font-semibold">子の総数（実子・養子の合計）<span className="text-red-500">*</span></Label>
-                    <Input id="childrenCount" type="number" min="0" value={formData.childrenCount} onChange={(e) => handleInputChange('childrenCount', e.target.value)} className={`mt-2 ${errors.childrenCount ? 'border-red-500' : ''}`} disabled={isLoading} />
+                    <Input id="childrenCount" type="number" inputMode="numeric" min="0" value={formData.childrenCount} onChange={(e) => handleInputChange('childrenCount', e.target.value)} className={`mt-2 ${errors.childrenCount ? 'border-red-500' : ''}`} disabled={isLoading} />
                     {errors.childrenCount && <Alert variant="destructive" className="mt-2 py-2 px-3"><AlertCircle className="h-4 w-4" /><AlertDescription className="text-sm">{errors.childrenCount}</AlertDescription></Alert>}
                 </div>
                 {hasChildren && (
                 <>
                     <div>
                         <Label htmlFor="adoptedChildrenCount">うち、養子の数</Label>
-                        <Input id="adoptedChildrenCount" type="number" min="0" max={parseInt(formData.childrenCount) || 0} value={formData.adoptedChildrenCount} onChange={(e) => handleInputChange('adoptedChildrenCount', e.target.value)} className={`mt-2 ${errors.adoptedChildrenCount ? 'border-red-500' : ''}`} disabled={isLoading} />
+                        <Input id="adoptedChildrenCount" type="number" inputMode="numeric" min="0" max={parseInt(formData.childrenCount) || 0} value={formData.adoptedChildrenCount} onChange={(e) => handleInputChange('adoptedChildrenCount', e.target.value)} className={`mt-2 ${errors.adoptedChildrenCount ? 'border-red-500' : ''}`} disabled={isLoading} />
                         {errors.adoptedChildrenCount && <Alert variant="destructive" className="mt-2 py-2 px-3"><AlertCircle className="h-4 w-4" /><AlertDescription className="text-sm">{errors.adoptedChildrenCount}</AlertDescription></Alert>}
                         <Alert className="mt-2 text-sm text-muted-foreground p-3 bg-gray-50 border-gray-200">
                           <AlertCircle className="h-4 w-4 text-gray-500" />
@@ -223,7 +223,7 @@ export function FamilyStructureForm({ onSubmit, initialData, isLoading = false }
                     </div>
                     <div>
                         <Label htmlFor="grandchildAdoptedCount">うち、孫養子（2割加算対象）の数</Label>
-                        <Input id="grandchildAdoptedCount" type="number" min="0" max={parseInt(formData.adoptedChildrenCount) || 0} value={formData.grandchildAdoptedCount} onChange={(e) => handleInputChange('grandchildAdoptedCount', e.target.value)} className={`mt-2 ${errors.grandchildAdoptedCount ? 'border-red-500' : ''}`} disabled={isLoading} />
+                        <Input id="grandchildAdoptedCount" type="number" inputMode="numeric" min="0" max={parseInt(formData.adoptedChildrenCount) || 0} value={formData.grandchildAdoptedCount} onChange={(e) => handleInputChange('grandchildAdoptedCount', e.target.value)} className={`mt-2 ${errors.grandchildAdoptedCount ? 'border-red-500' : ''}`} disabled={isLoading} />
                         {errors.grandchildAdoptedCount && <Alert variant="destructive" className="mt-2 py-2 px-3"><AlertCircle className="h-4 w-4" /><AlertDescription className="text-sm">{errors.grandchildAdoptedCount}</AlertDescription></Alert>}
                     </div>
                 </>
@@ -256,12 +256,12 @@ export function FamilyStructureForm({ onSubmit, initialData, isLoading = false }
                     <CardContent className="space-y-4">
                         <div>
                             <Label htmlFor="siblingsCount">兄弟姉妹（全血）の数 <span className="text-red-500">*</span></Label>
-                            <Input id="siblingsCount" type="number" min="0" value={formData.siblingsCount} onChange={(e) => handleInputChange('siblingsCount', e.target.value)} className={`mt-2 ${errors.siblingsCount ? 'border-red-500' : ''}`} disabled={isLoading}/>
+                            <Input id="siblingsCount" type="number" inputMode="numeric" min="0" value={formData.siblingsCount} onChange={(e) => handleInputChange('siblingsCount', e.target.value)} className={`mt-2 ${errors.siblingsCount ? 'border-red-500' : ''}`} disabled={isLoading}/>
                             {errors.siblingsCount && <Alert variant="destructive" className="mt-2 py-2 px-3"><AlertCircle className="h-4 w-4" /><AlertDescription className="text-sm">{errors.siblingsCount}</AlertDescription></Alert>}
                         </div>
                         <div>
                             <Label htmlFor="halfSiblingsCount">兄弟姉妹（半血）の数 <span className="text-red-500">*</span></Label>
-                            <Input id="halfSiblingsCount" type="number" min="0" value={formData.halfSiblingsCount} onChange={(e) => handleInputChange('halfSiblingsCount', e.target.value)} className={`mt-2 ${errors.halfSiblingsCount ? 'border-red-500' : ''}`} disabled={isLoading}/>
+                            <Input id="halfSiblingsCount" type="number" inputMode="numeric" min="0" value={formData.halfSiblingsCount} onChange={(e) => handleInputChange('halfSiblingsCount', e.target.value)} className={`mt-2 ${errors.halfSiblingsCount ? 'border-red-500' : ''}`} disabled={isLoading}/>
                             {errors.halfSiblingsCount && <Alert variant="destructive" className="mt-2 py-2 px-3"><AlertCircle className="h-4 w-4" /><AlertDescription className="text-sm">{errors.halfSiblingsCount}</AlertDescription></Alert>}
                         </div>
                     </CardContent>
@@ -277,7 +277,7 @@ export function FamilyStructureForm({ onSubmit, initialData, isLoading = false }
           </CardHeader>
           <CardContent>
               <Label htmlFor="nonHeirsCount">法定相続人以外の人数</Label>
-              <Input id="nonHeirsCount" type="number" min="0" value={formData.nonHeirsCount} onChange={(e) => handleInputChange('nonHeirsCount', e.target.value)} className="mt-2" disabled={isLoading}/>
+              <Input id="nonHeirsCount" type="number" inputMode="numeric" min="0" value={formData.nonHeirsCount} onChange={(e) => handleInputChange('nonHeirsCount', e.target.value)} className="mt-2" disabled={isLoading}/>
           </CardContent>
       </Card>
       

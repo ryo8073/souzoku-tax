@@ -234,6 +234,8 @@ export function ActualDivisionForm({
                     <div className="flex items-center space-x-2">
                       <Input
                         id={`amount-${heir.id}`}
+                        type="text"
+                        inputMode="numeric"
                         value={formatNumber(formData.amounts[heir.id] || '')}
                         onChange={(e) => handleAmountChange(heir.id, e.target.value)}
                         className="w-full text-right font-mono"
@@ -248,6 +250,8 @@ export function ActualDivisionForm({
                     <Input value={person.name} onChange={e => updateNonHeirPersonName(person.id, e.target.value)} />
                     <div className="flex items-center space-x-2">
                       <Input
+                        type="text"
+                        inputMode="numeric"
                         value={formatNumber(formData.amounts[person.id] || '')}
                         onChange={(e) => handleAmountChange(person.id, e.target.value)}
                         className="w-full text-right font-mono"
@@ -284,6 +288,8 @@ export function ActualDivisionForm({
                       <div className="flex items-center space-x-2">
                         <Input
                           id={`percentage-${heir.id}`}
+                          type="text"
+                          inputMode="decimal"
                           value={formData.percentages[heir.id] || ''}
                           onChange={(e) => handlePercentageChange(heir.id, e.target.value)}
                           className="w-full text-right font-mono"
@@ -298,6 +304,8 @@ export function ActualDivisionForm({
                        <Input value={person.name} onChange={e => updateNonHeirPersonName(person.id, e.target.value)} />
                        <div className="flex items-center space-x-2">
                           <Input
+                              type="text"
+                              inputMode="decimal"
                               value={formData.percentages[person.id] || ''}
                               onChange={(e) => handlePercentageChange(person.id, e.target.value)}
                               className="w-full text-right font-mono"
