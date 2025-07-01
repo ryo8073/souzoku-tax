@@ -142,7 +142,12 @@ export function TaxCalculationResult({ result, taxableAmount, isLoading }: TaxCa
                 <TableCell className="text-right font-mono text-lg">{formatCurrency(taxableAmount)}円</TableCell>
               </TableRow>
               <TableRow>
-                <TableCell className="font-semibold bg-slate-50">基礎控除</TableCell>
+                <TableCell className="font-semibold bg-slate-50">
+                  基礎控除
+                  <span className="text-xs font-normal text-gray-500 ml-2">
+                    (3,000万円 + 600万円 × {result.total_heirs_count}人)
+                  </span>
+                </TableCell>
                 <TableCell className="text-right font-mono text-lg">{formatCurrency(result.basic_deduction)}円</TableCell>
               </TableRow>
               <TableRow>
