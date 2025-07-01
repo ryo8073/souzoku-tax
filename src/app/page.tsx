@@ -9,6 +9,7 @@ import { FamilyStructureForm } from '@/components/family-structure-form';
 import { TaxCalculationResult } from '@/components/tax-calculation-result';
 import { ActualDivisionForm } from '@/components/actual-division-form';
 import { ActualDivisionResult } from '@/components/actual-division-result';
+import { type FormData as FamilyFormData } from '@/components/family-structure-form';
 import { FamilyStructure, Heir, TaxCalculationResult as TaxResult, DivisionResult, DivisionInput } from '@/types/inheritance';
 
 interface FormInputData {
@@ -33,14 +34,14 @@ export default function InheritanceTaxCalculator() {
   const [taxCalculationResult, setTaxCalculationResult] = useState<TaxResult | null>(null);
   const [actualDivisionResult, setActualDivisionResult] = useState<DivisionResult | null>(null);
   const [currentStep, setCurrentStep] = useState<string>('family');
-  const [formInputData, setFormInputData] = useState<FormInputData | null>(null);
+  const [formInputData, setFormInputData] = useState<FamilyFormData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const handleFamilyStructureSubmit = async (data: FormInputData) => {
+  const handleFamilyStructureSubmit = async (data: FormInputData, formData: FamilyFormData) => {
     setIsLoading(true);
     try {
-      // 入力データを保持
-      setFormInputData(data);
+      // フォームの生データを保持
+      setFormInputData(formData);
       setFamilyStructure(data.familyStructure);
       setTaxableAmount(data.taxableAmount);
       

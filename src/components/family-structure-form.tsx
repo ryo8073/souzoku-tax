@@ -25,12 +25,12 @@ interface FormInputData {
 }
 
 interface FamilyStructureFormProps {
-  onSubmit: (data: FormInputData) => void;
-  initialData?: FormInputData | null;
+  onSubmit: (data: FormInputData, formData: FormData) => void;
+  initialData?: FormData | null;
   isLoading?: boolean;
 }
 
-interface FormData {
+export interface FormData {
   taxableAmount: string;
   spouseExists: string;
   childrenCount: string;
@@ -58,15 +58,15 @@ export function FamilyStructureForm({ onSubmit, initialData, isLoading = false }
   useEffect(() => {
     if (initialData) {
       setFormData({
-        taxableAmount: initialData.taxableAmount?.toString() || '',
-        spouseExists: initialData.familyStructure?.spouse_exists ? 'true' : 'false',
-        childrenCount: initialData.familyStructure?.children_count?.toString() || '',
-        adoptedChildrenCount: initialData.familyStructure?.adopted_children_count?.toString() || '0',
-        grandchildAdoptedCount: initialData.familyStructure?.grandchild_adopted_count?.toString() || '0',
-        parentsAlive: initialData.familyStructure?.parents_alive?.toString() || '',
-        siblingsCount: initialData.familyStructure?.siblings_count?.toString() || '0',
-        halfSiblingsCount: initialData.familyStructure?.half_siblings_count?.toString() || '0',
-        nonHeirsCount: initialData.familyStructure?.non_heirs_count?.toString() || '0'
+        taxableAmount: initialData.taxableAmount || '',
+        spouseExists: initialData.spouseExists || '',
+        childrenCount: initialData.childrenCount || '',
+        adoptedChildrenCount: initialData.adoptedChildrenCount || '0',
+        grandchildAdoptedCount: initialData.grandchildAdoptedCount || '0',
+        parentsAlive: initialData.parentsAlive || '',
+        siblingsCount: initialData.siblingsCount || '0',
+        halfSiblingsCount: initialData.halfSiblingsCount || '0',
+        nonHeirsCount: initialData.nonHeirsCount || '0'
       });
     }
   }, [initialData]);
@@ -136,19 +136,24 @@ export function FamilyStructureForm({ onSubmit, initialData, isLoading = false }
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
-    onSubmit({
-      taxableAmount: parseInt(formData.taxableAmount),
+    
+    // API送信用データ
+    const apiData = {
+      taxableAmount: parseInt(formData.taxableAmount.replace(/,/g, '')),
       familyStructure: {
         spouse_exists: formData.spouseExists === 'true',
-        children_count: parseInt(formData.childrenCount),
-        adopted_children_count: parseInt(formData.adoptedChildrenCount),
-        grandchild_adopted_count: parseInt(formData.grandchildAdoptedCount),
-        parents_alive: formData.childrenCount !== '0' && parseInt(formData.childrenCount) > 0 ? 0 : parseInt(formData.parentsAlive),
-        siblings_count: formData.childrenCount !== '0' && parseInt(formData.childrenCount) > 0 ? 0 : (formData.parentsAlive !== '0' && parseInt(formData.parentsAlive) > 0 ? 0 : parseInt(formData.siblingsCount)),
-        half_siblings_count: formData.childrenCount !== '0' && parseInt(formData.childrenCount) > 0 ? 0 : (formData.parentsAlive !== '0' && parseInt(formData.parentsAlive) > 0 ? 0 : parseInt(formData.halfSiblingsCount)),
-        non_heirs_count: parseInt(formData.nonHeirsCount)
+        children_count: parseInt(formData.childrenCount) || 0,
+        adopted_children_count: parseInt(formData.adoptedChildrenCount) || 0,
+        grandchild_adopted_count: parseInt(formData.grandchildAdoptedCount) || 0,
+        parents_alive: !hasChildren ? (parseInt(formData.parentsAlive) || 0) : 0,
+        siblings_count: !hasChildren && !hasParents ? (parseInt(formData.siblingsCount) || 0) : 0,
+        half_siblings_count: !hasChildren && !hasParents ? (parseInt(formData.halfSiblingsCount) || 0) : 0,
+        non_heirs_count: parseInt(formData.nonHeirsCount) || 0
       }
-    });
+    };
+
+    // フォームの生データ(formData)も渡す
+    onSubmit(apiData, formData);
   };
   
   const hasChildren = formData.childrenCount !== '' && parseInt(formData.childrenCount) > 0;
