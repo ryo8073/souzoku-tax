@@ -56,13 +56,13 @@ export function ActualDivisionResult({ result }: ActualDivisionResultProps) {
                       </Badge>
                     </div>
                   </td>
-                  <td className="p-3 text-right">
+                  <td className="p-3 text-right font-mono">
                     {formatCurrency(detail.acquired_amount)}円
                   </td>
-                  <td className="p-3 text-right">
+                  <td className="p-3 text-right font-mono">
                     {formatCurrency(detail.distributed_tax)}円
                   </td>
-                  <td className="p-3 text-right">
+                  <td className="p-3 text-right font-mono">
                     <span
                       className={
                         detail.adjustment > 0
@@ -76,7 +76,7 @@ export function ActualDivisionResult({ result }: ActualDivisionResultProps) {
                       {formatCurrency(detail.adjustment)}円
                     </span>
                   </td>
-                  <td className="p-3 text-right font-bold text-indigo-600">
+                  <td className="p-3 text-right font-bold font-mono text-indigo-600">
                     {formatCurrency(detail.final_tax_amount)}円
                   </td>
                 </tr>
@@ -84,10 +84,10 @@ export function ActualDivisionResult({ result }: ActualDivisionResultProps) {
             </tbody>
             <tfoot>
               <tr className="bg-gray-100 font-bold border-t-2">
-                <td className="p-3 text-left">合計</td>
-                <td className="p-3 text-right">{formatCurrency(totalAcquiredAmount)}円</td>
-                <td className="p-3 text-right">{formatCurrency(totalDistributedTax)}円</td>
-                <td className="p-3 text-right">
+                <td className="p-3 text-left font-semibold">合計</td>
+                <td className="p-3 text-right font-bold font-mono">{formatCurrency(totalAcquiredAmount)}円</td>
+                <td className="p-3 text-right font-bold font-mono">{formatCurrency(totalDistributedTax)}円</td>
+                <td className="p-3 text-right font-bold font-mono">
                   <span
                     className={
                       totalAdjustment > 0
@@ -101,7 +101,7 @@ export function ActualDivisionResult({ result }: ActualDivisionResultProps) {
                     {formatCurrency(totalAdjustment)}円
                   </span>
                 </td>
-                <td className="p-3 text-right text-indigo-600 text-lg">
+                <td className="p-3 text-right text-indigo-600 text-lg font-bold font-mono">
                   {formatCurrency(result.total_final_tax_amount)}円
                 </td>
               </tr>

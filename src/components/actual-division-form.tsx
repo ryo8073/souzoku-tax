@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -199,6 +199,14 @@ export function ActualDivisionForm({
   
   const { totalInputAmount, totalInputPercentage } = calculateTotals();
 
+  const totalPercentageFromAmounts = useMemo(() => {
+    return Object.values(formData.amounts).reduce((sum, amountStr) => {
+        const numericAmount = Number(String(amountStr).replace(/,/g, ''));
+        if (!totalAmount || isNaN(numericAmount)) return sum;
+        return sum + (numericAmount / totalAmount * 100);
+    }, 0);
+  }, [formData.amounts, totalAmount]);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <Card>
@@ -228,10 +236,10 @@ export function ActualDivisionForm({
                         id={`amount-${heir.id}`}
                         value={formatNumber(formData.amounts[heir.id] || '')}
                         onChange={(e) => handleAmountChange(heir.id, e.target.value)}
-                        className="w-full text-right"
+                        className="w-full text-right font-mono"
                       />
                       <span>円</span>
-                      <span className="text-sm text-gray-500 w-24 text-right">({calculatePercentage(formData.amounts[heir.id] || '0')}%)</span>
+                      <span className="text-sm text-gray-500 w-24 text-right font-mono">({calculatePercentage(formData.amounts[heir.id] || '0')}%)</span>
                     </div>
                   </div>
                 ))}
@@ -242,10 +250,10 @@ export function ActualDivisionForm({
                       <Input
                         value={formatNumber(formData.amounts[person.id] || '')}
                         onChange={(e) => handleAmountChange(person.id, e.target.value)}
-                        className="w-full text-right"
+                        className="w-full text-right font-mono"
                       />
                       <span>円</span>
-                      <span className="text-sm text-gray-500 w-24 text-right">({calculatePercentage(formData.amounts[person.id] || '0')}%)</span>
+                      <span className="text-sm text-gray-500 w-24 text-right font-mono">({calculatePercentage(formData.amounts[person.id] || '0')}%)</span>
                       <Button variant="ghost" size="icon" onClick={() => removeNonHeirPerson(person.id)}><Minus className="h-4 w-4" /></Button>
                     </div>
                   </div>
@@ -254,8 +262,10 @@ export function ActualDivisionForm({
                  <div className="p-4 border rounded-md font-semibold flex justify-between items-center">
                    <span>合計取得金額:</span>
                    <div className='text-right'>
-                    <span>{formatCurrency(totalInputAmount)} 円</span>
-                    <span className="text-sm text-gray-500 ml-2">(100.00%)</span>
+                    <span className='font-mono'>{formatCurrency(totalInputAmount)} 円</span>
+                    <span className={`text-sm ml-2 font-mono ${Math.abs(totalPercentageFromAmounts - 100) > 0.01 ? 'text-red-500 font-bold' : 'text-gray-500'}`}>
+                      ({totalPercentageFromAmounts.toFixed(2)}%)
+                    </span>
                    </div>
                  </div>
               </div>
@@ -276,10 +286,10 @@ export function ActualDivisionForm({
                           id={`percentage-${heir.id}`}
                           value={formData.percentages[heir.id] || ''}
                           onChange={(e) => handlePercentageChange(heir.id, e.target.value)}
-                          className="w-full text-right"
+                          className="w-full text-right font-mono"
                         />
                         <span>%</span>
-                        <span className="text-sm text-gray-500 w-32 text-right">({calculateAmountFromPercentage(formData.percentages[heir.id] || '0')})</span>
+                        <span className="text-sm text-gray-500 w-32 text-right font-mono">({calculateAmountFromPercentage(formData.percentages[heir.id] || '0')})</span>
                       </div>
                     </div>
                 ))}
@@ -290,10 +300,10 @@ export function ActualDivisionForm({
                           <Input
                               value={formData.percentages[person.id] || ''}
                               onChange={(e) => handlePercentageChange(person.id, e.target.value)}
-                              className="w-full text-right"
+                              className="w-full text-right font-mono"
                           />
                           <span>%</span>
-                          <span className="text-sm text-gray-500 w-32 text-right">({calculateAmountFromPercentage(formData.percentages[person.id] || '0')})</span>
+                          <span className="text-sm text-gray-500 w-32 text-right font-mono">({calculateAmountFromPercentage(formData.percentages[person.id] || '0')})</span>
                           <Button variant="ghost" size="icon" onClick={() => removeNonHeirPerson(person.id)}><Minus className="h-4 w-4" /></Button>
                        </div>
                     </div>
@@ -302,8 +312,8 @@ export function ActualDivisionForm({
                 <div className="p-4 border rounded-md font-semibold flex justify-between">
                    <span>合計取得割合:</span>
                    <div className='text-right'>
-                    <span>{totalInputPercentage.toFixed(2)} %</span>
-                    <span className="text-sm text-gray-500 ml-2">({formatCurrency(totalAmount)})</span>
+                    <span className='font-mono'>{totalInputPercentage.toFixed(2)} %</span>
+                    <span className="text-sm text-gray-500 ml-2 font-mono">({formatCurrency(totalAmount)})</span>
                    </div>
                 </div>
                  <div className="mt-4">
